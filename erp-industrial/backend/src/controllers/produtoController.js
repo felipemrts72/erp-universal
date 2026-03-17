@@ -1,0 +1,16 @@
+import { produtoService } from '../services/produtoService.js';
+
+export const produtoController = {
+  async create(req, res) {
+    const result = await produtoService.create(req.body);
+    res.status(201).json(result);
+  },
+  async list(req, res) {
+    const result = await produtoService.list();
+    res.json(result);
+  },
+  async addComponente(req, res) {
+    const result = await produtoService.addComponente({ ...req.body, produtoId: Number(req.params.id) });
+    res.status(201).json(result);
+  }
+};
