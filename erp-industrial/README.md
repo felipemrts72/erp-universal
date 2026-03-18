@@ -5,7 +5,7 @@
 - `frontend/`: React + Vite + Axios + TailwindCSS.
 
 ## Banco de dados
-Execute o schema existente (sem alterações estruturais):
+Execute o schema:
 
 ```bash
 psql "$DATABASE_URL" -f backend/src/database/schema.sql
