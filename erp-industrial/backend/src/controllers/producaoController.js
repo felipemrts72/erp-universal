@@ -10,11 +10,11 @@ export const producaoController = {
     res.json(result);
   },
   async iniciar(req, res) {
-    const result = await producaoService.iniciar(Number(req.params.id));
+    const result = await producaoService.iniciar(Number(req.body.ordem_producao_id));
     res.json(result);
   },
   async finalizar(req, res) {
-    const result = await producaoService.finalizar(Number(req.params.id));
+    const result = await producaoService.finalizar(Number(req.body.ordem_producao_id));
     res.json(result);
   }
 };

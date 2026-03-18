@@ -18,9 +18,11 @@ router.post('/produtos', asyncHandler(produtoController.create));
 router.post('/produtos/:id/componentes', asyncHandler(produtoController.addComponente));
 
 router.get('/estoque', asyncHandler(estoqueController.list));
-router.post('/estoque', asyncHandler(estoqueController.registrar));
+router.post('/estoque/retirada-producao', asyncHandler(estoqueController.retiradaProducao));
+router.post('/estoque/insumo-extra', asyncHandler(estoqueController.insumoExtra));
 
 router.get('/orcamentos', asyncHandler(orcamentoController.list));
+router.get('/orcamentos/templates', asyncHandler(orcamentoController.templates));
 router.post('/orcamentos', asyncHandler(orcamentoController.create));
 router.patch('/orcamentos/:id/status', asyncHandler(orcamentoController.updateStatus));
 
@@ -29,8 +31,8 @@ router.post('/pedidos', asyncHandler(pedidoController.create));
 
 router.get('/producao', asyncHandler(producaoController.list));
 router.post('/producao', asyncHandler(producaoController.create));
-router.post('/producao/:id/iniciar', asyncHandler(producaoController.iniciar));
-router.post('/producao/:id/finalizar', asyncHandler(producaoController.finalizar));
+router.post('/producao/iniciar', asyncHandler(producaoController.iniciar));
+router.post('/producao/finalizar', asyncHandler(producaoController.finalizar));
 
 router.get('/relatorios-producao', asyncHandler(relatorioController.list));
 router.post(

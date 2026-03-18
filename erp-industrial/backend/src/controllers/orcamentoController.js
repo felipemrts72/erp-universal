@@ -12,5 +12,9 @@ export const orcamentoController = {
   async updateStatus(req, res) {
     const result = await orcamentoService.updateStatus(Number(req.params.id), req.body.status);
     res.json(result);
+  },
+  async templates(req, res) {
+    const result = await orcamentoService.templates();
+    res.json(result);
   }
 };

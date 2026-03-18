@@ -12,13 +12,7 @@ export const produtoRepository = {
   },
 
   async list() {
-    const { rows } = await pool.query(
-      `SELECT p.*, COALESCE(SUM(m.quantidade), 0) AS estoque_atual
-       FROM produtos p
-       LEFT JOIN movimentos_estoque m ON m.produto_id = p.id
-       GROUP BY p.id
-       ORDER BY p.id DESC`
-    );
+    const { rows } = await pool.query('SELECT * FROM produtos ORDER BY id DESC');
     return rows;
   },
 
@@ -37,7 +31,7 @@ export const produtoRepository = {
     return rows[0];
   },
 
-  async getComponentes(produtoId) {
+  async buscarComponentes(produtoId) {
     const { rows } = await pool.query(
       `SELECT cp.*, p.nome AS componente_nome
        FROM componentes_produto cp

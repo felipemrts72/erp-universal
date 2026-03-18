@@ -21,19 +21,16 @@ npm install
 npm run dev
 ```
 
-## Rodar frontend
-```bash
-cd frontend
-npm install
-npm run dev
-```
+## Endpoints principais (backend)
+- `GET /api/estoque`
+- `POST /api/estoque/retirada-producao`
+- `POST /api/estoque/insumo-extra`
+- `POST /api/orcamentos`
+- `GET /api/orcamentos/templates`
+- `POST /api/pedidos`
+- `POST /api/producao/iniciar`
+- `POST /api/producao/finalizar`
 
-## Endpoints principais
-- `/api/produtos`
-- `/api/estoque`
-- `/api/orcamentos`
-- `/api/pedidos`
-- `/api/producao`
-- `/api/relatorios-producao`
-- `/api/dashboard`
-- `/api/alertas`
+## Observações de auditoria
+- Auditoria de estoque é persistida em arquivo local: `backend/src/data/auditoria_estoque.json`.
+- Metadados de orçamento flexível (nome customizado) em: `backend/src/data/orcamento_meta.json`.
