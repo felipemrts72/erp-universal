@@ -10,7 +10,14 @@ export const produtoController = {
     res.json(result);
   },
   async addComponente(req, res) {
-    const result = await produtoService.addComponente({ ...req.body, produtoId: Number(req.params.id) });
+    const result = await produtoService.addComponente({
+      ...req.body,
+      produtoId: Number(req.params.id),
+    });
     res.status(201).json(result);
-  }
+  },
+  async buscar(req, res) {
+    const result = await produtoService.buscar(req.query.q);
+    res.json(result);
+  },
 };
