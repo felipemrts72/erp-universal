@@ -1,0 +1,122 @@
+[
+  {
+    "id": 1,
+    "criado_em": "2026-03-19T23:45:23.836Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 5,
+    "quantidade": 10,
+    "custo_unitario": 45,
+    "fornecedor": "Fornecedor A",
+    "usuario_id": 1
+  },
+  {
+    "id": 2,
+    "criado_em": "2026-03-19T23:46:13.442Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 5,
+    "quantidade": 50,
+    "custo_unitario": 55,
+    "fornecedor": "Fornecedor A",
+    "usuario_id": 1
+  },
+  {
+    "id": 3,
+    "criado_em": "2026-03-19T23:49:18.186Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 9,
+    "quantidade": 1500,
+    "custo_unitario": 4.5,
+    "fornecedor": "Jessé",
+    "usuario_id": 1
+  },
+  {
+    "id": 4,
+    "criado_em": "2026-03-19T23:52:39.971Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 10,
+    "quantidade": 10,
+    "custo_unitario": 95,
+    "fornecedor": "Martelos",
+    "usuario_id": 1
+  },
+  {
+    "id": 5,
+    "criado_em": "2026-03-19T23:55:49.901Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 11,
+    "quantidade": 20,
+    "custo_unitario": 95,
+    "fornecedor": "Martelos",
+    "usuario_id": 1
+  },
+  {
+    "id": 6,
+    "criado_em": "2026-03-19T23:58:15.679Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 12,
+    "quantidade": 30,
+    "custo_unitario": 95,
+    "fornecedor": "Martelos",
+    "usuario_id": 1
+  },
+  {
+    "id": 7,
+    "criado_em": "2026-03-20T00:40:21.775Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 1,
+    "quantidade": 2000,
+    "custo_unitario": 8.5,
+    "fornecedor": "Fornecedor A",
+    "usuario_id": 1
+  },
+  {
+    "id": 8,
+    "criado_em": "2026-03-20T00:40:47.308Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 2,
+    "quantidade": 1000,
+    "custo_unitario": 6.5,
+    "fornecedor": "JADE",
+    "usuario_id": 1
+  },
+  {
+    "id": 9,
+    "criado_em": "2026-03-20T00:41:10.057Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 3,
+    "quantidade": 500,
+    "custo_unitario": 4.5,
+    "fornecedor": "JESSE",
+    "usuario_id": 1
+  },
+  {
+    "id": 10,
+    "criado_em": "2026-03-20T00:41:39.610Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 4,
+    "quantidade": 10,
+    "custo_unitario": 350,
+    "fornecedor": "CONCACO",
+    "usuario_id": 1
+  },
+  {
+    "id": 11,
+    "criado_em": "2026-03-20T02:22:49.159Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 1,
+    "quantidade": 100,
+    "custo_unitario": 10,
+    "fornecedor": "CONCACO",
+    "usuario_id": 1
+  },
+  {
+    "id": 12,
+    "criado_em": "2026-03-20T02:23:07.701Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 2,
+    "quantidade": 5,
+    "custo_unitario": 500,
+    "fornecedor": "CONCACO",
+    "usuario_id": 1
+  }
+]

@@ -2,26 +2,36 @@ import { pool } from '../database/pool.js';
 import { auditoriaRepository } from './auditoriaRepository.js';
 
 export const estoqueRepository = {
-  async getEstoqueAtual(produtoId) {
-    const { rows } = await pool.query(
+  async getEstoqueAtual(produtoId, client = pool) {
+    const { rows } = await client.query(
       'SELECT COALESCE(SUM(quantidade),0) AS saldo FROM movimentos_estoque WHERE produto_id = $1',
-      [produtoId]
+      [produtoId],
     );
     return Number(rows[0].saldo);
   },
 
-  async criarMovimentoEstoque({ produtoId, quantidade, tipoMovimento, referenciaTipo, referenciaId }) {
-    const { rows } = await pool.query(
-      `INSERT INTO movimentos_estoque (produto_id, quantidade, tipo_movimento, referencia_tipo, referencia_id)
+  async criarMovimentoEstoque(
+    { produtoId, quantidade, tipoMovimento, referenciaTipo, referenciaId },
+    client = pool,
+  ) {
+    const { rows } = await client.query(
+      `INSERT INTO movimentos_estoque 
+       (produto_id, quantidade, tipo_movimento, referencia_tipo, referencia_id)
        VALUES ($1,$2,$3,$4,$5)
        RETURNING *`,
-      [produtoId, quantidade, tipoMovimento, referenciaTipo || null, referenciaId || null]
+      [
+        produtoId,
+        quantidade,
+        tipoMovimento,
+        referenciaTipo || null,
+        referenciaId || null,
+      ],
     );
     return rows[0];
   },
 
-  async registrarAuditoria(payload) {
-    return auditoriaRepository.registrarAuditoria(payload);
+  async registrarAuditoria(payload, client = pool) {
+    return auditoriaRepository.registrarAuditoria(payload, client);
   },
 
   async listarResumoEstoque() {
@@ -32,8 +42,8 @@ export const estoqueRepository = {
        FROM produtos p
        LEFT JOIN movimentos_estoque m ON m.produto_id = p.id
        GROUP BY p.id
-       ORDER BY p.nome`
+       ORDER BY p.nome`,
     );
     return rows;
-  }
+  },
 };

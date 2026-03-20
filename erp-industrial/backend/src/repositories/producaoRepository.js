@@ -6,7 +6,7 @@ export const producaoRepository = {
       `INSERT INTO ordens_producao (produto_id, quantidade, status)
        VALUES ($1,$2,$3)
        RETURNING *`,
-      [produtoId, quantidade, status]
+      [produtoId, quantidade, status],
     );
     return rows[0];
   },
@@ -17,13 +17,16 @@ export const producaoRepository = {
        FROM ordens_producao op
        INNER JOIN produtos p ON p.id = op.produto_id
        WHERE op.id=$1`,
-      [id]
+      [id],
     );
     return rows[0];
   },
 
   async updateStatus(id, status) {
-    const { rows } = await pool.query('UPDATE ordens_producao SET status=$1 WHERE id=$2 RETURNING *', [status, id]);
+    const { rows } = await pool.query(
+      'UPDATE ordens_producao SET status=$1 WHERE id=$2 RETURNING *',
+      [status, id],
+    );
     return rows[0];
   },
 
@@ -32,7 +35,7 @@ export const producaoRepository = {
       `SELECT op.*, p.nome AS produto_nome
        FROM ordens_producao op
        INNER JOIN produtos p ON p.id = op.produto_id
-       ORDER BY op.id DESC`
+       ORDER BY op.id DESC`,
     );
     return rows;
   },
@@ -44,8 +47,8 @@ export const producaoRepository = {
        WHERE referencia_tipo = 'ordem_producao_retirada'
          AND referencia_id = $1
          AND tipo_movimento = 'saida'`,
-      [ordemId]
+      [ordemId],
     );
     return rows[0].total > 0;
-  }
+  },
 };

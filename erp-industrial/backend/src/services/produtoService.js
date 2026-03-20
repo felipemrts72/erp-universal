@@ -2,16 +2,29 @@ import { produtoRepository } from '../repositories/produtoRepository.js';
 import { httpError } from '../utils/httpError.js';
 import { pool } from '../database/pool.js';
 
-const tiposValidos = ['materia_prima', 'revenda', 'fabricado', 'conjunto'];
+const tiposValidos = [
+  'materia_prima',
+  'revenda',
+  'fabricado',
+  'conjunto',
+  'consumivel',
+];
 
 export const produtoService = {
-  async create(payload) {
+  async create(payload, user) {
     if (!tiposValidos.includes(payload.tipo)) {
       throw httpError('Tipo de produto inválido');
     }
 
-    if (payload.precoVenda == null) {
-      throw httpError('Preço de venda é obrigatório');
+    // 🔐 regra de permissão
+    if (user.role === 'estoquista') {
+      // estoquista NÃO pode definir preço de venda
+      payload.precoVenda = null;
+    } else {
+      // admin/vendedor precisa definir
+      if (payload.precoVenda == null) {
+        throw httpError('Preço de venda é obrigatório');
+      }
     }
 
     const client = await pool.connect();

@@ -14,5 +14,9 @@ export const estoqueController = {
   async insumoExtra(req, res) {
     const result = await estoqueService.registrarInsumoExtra(req.body);
     res.status(201).json(result);
-  }
+  },
+  async entrada(req, res) {
+    const result = await estoqueService.entradaEstoque(req.body);
+    res.status(201).json(result);
+  },
 };

@@ -61,7 +61,7 @@ export const requisicaoService = {
       // 1. atualizar item
       const { rows } = await client.query(
         `UPDATE itens_requisicao
-       SET quantidade_atendida = quantidade_atendida + $1,
+       SET quantidade_atendida = COALESCE(quantidade_atendida,0) + $1,
            funcionario_id = $2
        WHERE id = $3
        RETURNING *`,
@@ -70,7 +70,25 @@ export const requisicaoService = {
 
       const item = rows[0];
 
-      // 2. registrar consumo
+      // 🔥 2. descobrir tipo do produto
+      const { rows: produtoRows } = await client.query(
+        `SELECT tipo FROM produtos WHERE id = $1`,
+        [item.produto_id],
+      );
+
+      const tipo = produtoRows[0].tipo;
+
+      // 🔥 3. regra: só consumível baixa estoque
+      if (tipo === 'consumivel') {
+        await client.query(
+          `INSERT INTO movimentos_estoque 
+         (produto_id, quantidade, tipo_movimento, referencia_tipo, referencia_id)
+         VALUES ($1,$2,'saida','consumo_requisicao',$3)`,
+          [item.produto_id, -quantidade, itemId],
+        );
+      }
+
+      // ✔ sempre registra consumo (auditoria)
       await client.query(
         `INSERT INTO consumos 
        (produto_id, funcionario_id, quantidade, tipo)
@@ -78,7 +96,7 @@ export const requisicaoService = {
         [item.produto_id, funcionarioId, quantidade],
       );
 
-      // 3. verificar consumo recente (últimas 24h)
+      // 🔥 4. verificação de abuso (24h)
       const { rows: consumoRecente } = await client.query(
         `SELECT SUM(quantidade) as total
        FROM consumos
@@ -90,9 +108,7 @@ export const requisicaoService = {
 
       const total = Number(consumoRecente[0].total || 0);
 
-      // 🔥 limite (você pode melhorar depois)
       const LIMITE = 10;
-
       let exigeJustificativa = false;
 
       if (total > LIMITE) {

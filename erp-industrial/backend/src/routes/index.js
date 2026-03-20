@@ -8,11 +8,20 @@ import { producaoController } from '../controllers/producaoController.js';
 import { relatorioController } from '../controllers/relatorioController.js';
 import { dashboardController } from '../controllers/dashboardController.js';
 import { requisicaoController } from '../controllers/requisicaoController.js';
+import { authController } from '../controllers/authController.js';
+import { authMiddleware } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 
 export const router = Router();
-
 router.get('/health', (req, res) => res.json({ ok: true }));
+
+// públicas
+router.post('/login', asyncHandler(authController.login));
+
+// protegidas
+router.use(authMiddleware);
+
+router.post('/usuarios', asyncHandler(authController.register));
 
 router.get('/produtos', asyncHandler(produtoController.list));
 router.post('/produtos', asyncHandler(produtoController.create));
@@ -20,20 +29,27 @@ router.post(
   '/produtos/:id/componentes',
   asyncHandler(produtoController.addComponente),
 );
-router.post('/produtos/busca', asyncHandler(produtoController.buscar));
+router.get('/produtos/busca', asyncHandler(produtoController.buscar));
 
 router.get('/estoque', asyncHandler(estoqueController.list));
-router.post(
+router.post('/estoque/entrada', asyncHandler(estoqueController.entrada));
+/* router.post(
   '/estoque/retirada-producao',
   asyncHandler(estoqueController.retiradaProducao),
 );
 router.post(
   '/estoque/insumo-extra',
   asyncHandler(estoqueController.insumoExtra),
-);
+); */
 
-router.post('/ordens-producao/:ordemId/requisicao', requisicaoController.criar);
-router.patch('/requisicoes/itens/:itemId', requisicaoController.atenderItem);
+router.post(
+  '/ordens-producao/:ordemId/requisicao',
+  asyncHandler(requisicaoController.criar),
+);
+router.patch(
+  '/requisicoes/itens/:itemId',
+  asyncHandler(requisicaoController.atenderItem),
+);
 
 router.get('/orcamentos', asyncHandler(orcamentoController.list));
 router.get(

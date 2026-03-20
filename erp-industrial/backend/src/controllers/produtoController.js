@@ -2,8 +2,9 @@ import { produtoService } from '../services/produtoService.js';
 
 export const produtoController = {
   async create(req, res) {
-    const result = await produtoService.create(req.body);
+    const result = await produtoService.create(req.body, req.user);
     res.status(201).json(result);
+    console.log(req.user);
   },
   async list(req, res) {
     const result = await produtoService.list();

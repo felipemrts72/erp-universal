@@ -25,9 +25,26 @@ export const produtoRepository = {
   },
 
   async list() {
-    const { rows } = await pool.query(
-      'SELECT * FROM produtos ORDER BY id DESC',
-    );
+    const { rows } = await pool.query(`
+    SELECT 
+      p.*,
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'componente_id', cp.componente_id,
+            'nome', c.nome,
+            'quantidade', cp.quantidade
+          )
+        ) FILTER (WHERE cp.id IS NOT NULL),
+        '[]'
+      ) AS componentes
+    FROM produtos p
+    LEFT JOIN componentes_produto cp ON cp.produto_id = p.id
+    LEFT JOIN produtos c ON c.id = cp.componente_id
+    GROUP BY p.id
+    ORDER BY p.id DESC
+  `);
+
     return rows;
   },
 

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { pool } from '../database/pool.js';
 import { fileURLToPath } from 'url';
 import { estoqueRepository } from '../repositories/estoqueRepository.js';
 import { producaoRepository } from '../repositories/producaoRepository.js';
@@ -28,22 +29,30 @@ export const estoqueService = {
     const ordem = await producaoRepository.getById(ordem_producao_id);
     if (!ordem) throw httpError('Ordem de produção não encontrada', 404);
 
-    const componentes = await produtoRepository.buscarComponentes(ordem.produto_id);
-    if (!componentes.length) throw httpError('Produto da ordem não possui componentes cadastrados');
+    const componentes = await produtoRepository.buscarComponentes(
+      ordem.produto_id,
+    );
+    if (!componentes.length)
+      throw httpError('Produto da ordem não possui componentes cadastrados');
 
     const movimentos = [];
     for (const componente of componentes) {
-      const necessario = Number(componente.quantidade) * Number(ordem.quantidade);
-      const saldo = await estoqueRepository.getEstoqueAtual(componente.componente_id);
+      const necessario =
+        Number(componente.quantidade) * Number(ordem.quantidade);
+      const saldo = await estoqueRepository.getEstoqueAtual(
+        componente.componente_id,
+      );
       if (saldo < necessario) {
-        throw httpError(`Estoque insuficiente para componente ${componente.componente_nome}`);
+        throw httpError(
+          `Estoque insuficiente para componente ${componente.componente_nome}`,
+        );
       }
       const movimento = await estoqueRepository.criarMovimentoEstoque({
         produtoId: componente.componente_id,
         quantidade: -necessario,
         tipoMovimento: 'saida',
         referenciaTipo: 'ordem_producao_retirada',
-        referenciaId: ordem_producao_id
+        referenciaId: ordem_producao_id,
       });
 
       await estoqueRepository.registrarAuditoria({
@@ -52,7 +61,7 @@ export const estoqueService = {
         ordem_producao_id,
         produto_id: componente.componente_id,
         quantidade: necessario,
-        observacao: 'Retirada padrão por lista de componentes'
+        observacao: 'Retirada padrão por lista de componentes',
       });
       movimentos.push(movimento);
     }
@@ -61,16 +70,26 @@ export const estoqueService = {
   },
 
   async registrarInsumoExtra(payload) {
-    const obrigatorios = ['produto_id', 'quantidade', 'observacao', 'solicitado_por', 'assinatura_url', 'usuario_id', 'ordem_producao_id'];
+    const obrigatorios = [
+      'produto_id',
+      'quantidade',
+      'observacao',
+      'solicitado_por',
+      'assinatura_url',
+      'usuario_id',
+      'ordem_producao_id',
+    ];
     for (const campo of obrigatorios) {
-      if (!payload[campo]) throw httpError(`Campo obrigatório ausente: ${campo}`);
+      if (!payload[campo])
+        throw httpError(`Campo obrigatório ausente: ${campo}`);
     }
 
     const ordem = await producaoRepository.getById(payload.ordem_producao_id);
     if (!ordem) throw httpError('Ordem de produção não encontrada', 404);
 
     const saldo = await estoqueRepository.getEstoqueAtual(payload.produto_id);
-    if (saldo < Number(payload.quantidade)) throw httpError('Estoque insuficiente para insumo extra');
+    if (saldo < Number(payload.quantidade))
+      throw httpError('Estoque insuficiente para insumo extra');
 
     const assinaturaUrl = payload.assinatura_url.startsWith('data:')
       ? salvarAssinaturaBase64(payload.assinatura_url)
@@ -81,7 +100,7 @@ export const estoqueService = {
       quantidade: -Number(payload.quantidade),
       tipoMovimento: 'saida',
       referenciaTipo: 'ordem_producao_insumo_extra',
-      referenciaId: payload.ordem_producao_id
+      referenciaId: payload.ordem_producao_id,
     });
 
     const auditoria = await estoqueRepository.registrarAuditoria({
@@ -93,9 +112,98 @@ export const estoqueService = {
       observacao: payload.observacao,
       valor_unitario: payload.valor_unitario || null,
       solicitado_por: payload.solicitado_por,
-      assinatura_url: assinaturaUrl
+      assinatura_url: assinaturaUrl,
     });
 
     return { movimento, auditoria };
-  }
+  },
+
+  async entradaEstoque({
+    produtoId,
+    quantidade,
+    custoUnitario,
+    fornecedor,
+    usuarioId,
+  }) {
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // 🔥 validações
+      if (!produtoId) throw httpError('Produto obrigatório');
+      if (!usuarioId) throw httpError('Usuário obrigatório');
+      if (quantidade <= 0)
+        throw httpError('Quantidade deve ser maior que zero');
+      if (custoUnitario <= 0) throw httpError('Custo deve ser maior que zero');
+
+      // 1. saldo atual
+      const saldoAtual = await estoqueRepository.getEstoqueAtual(
+        produtoId,
+        client,
+      );
+
+      // 2. buscar produto
+      const { rows } = await client.query(
+        'SELECT custo FROM produtos WHERE id = $1',
+        [produtoId],
+      );
+
+      if (!rows.length) {
+        throw httpError('Produto não encontrado', 404);
+      }
+
+      const custoAtual = Number(rows[0].custo || 0);
+
+      // 3. cálculo custo médio
+      const novoCusto =
+        saldoAtual === 0
+          ? custoUnitario
+          : (custoAtual * saldoAtual + custoUnitario * quantidade) /
+            (saldoAtual + quantidade);
+
+      // 4. atualizar produto
+      await client.query(
+        `UPDATE produtos 
+       SET custo = $1,
+           ultimo_preco_compra = $2
+       WHERE id = $3`,
+        [novoCusto, custoUnitario, produtoId],
+      );
+
+      // 5. movimento (AGORA DENTRO DA TRANSAÇÃO)
+      await estoqueRepository.criarMovimentoEstoque(
+        {
+          produtoId,
+          quantidade,
+          tipoMovimento: 'entrada',
+          referenciaTipo: 'compra',
+          referenciaId: null,
+        },
+        client,
+      );
+
+      // 6. auditoria
+      await estoqueRepository.registrarAuditoria(
+        {
+          tipo: 'entrada_estoque',
+          produto_id: produtoId,
+          quantidade,
+          custo_unitario: custoUnitario,
+          fornecedor,
+          usuario_id: usuarioId,
+        },
+        client,
+      );
+
+      await client.query('COMMIT');
+
+      return { novoCusto };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  },
 };
