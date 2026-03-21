@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS consumos_consumiveis (
   id SERIAL PRIMARY KEY,
   produto_id INTEGER NOT NULL REFERENCES produtos(id),
   funcionario_id INTEGER NOT NULL REFERENCES funcionarios(id),
+  usuario_id INTEGER NOT NULL REFERENCES usuarios(id), 
   setor VARCHAR(100),
   quantidade NUMERIC(12,2) NOT NULL,
   assinatura_url TEXT,

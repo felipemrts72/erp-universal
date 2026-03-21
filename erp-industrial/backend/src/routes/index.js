@@ -13,6 +13,7 @@ import { funcionarioController } from '../controllers/funcionarioController.js';
 import { consumivelController } from '../controllers/consumivelController.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
+import { normalizeNumbers } from '../middleware/numbers.js';
 
 export const router = Router();
 router.get('/health', (req, res) => res.json({ ok: true }));
@@ -22,6 +23,7 @@ router.post('/login', asyncHandler(authController.login));
 
 // protegidas
 router.use(authMiddleware);
+router.use(normalizeNumbers);
 
 router.post('/usuarios', asyncHandler(authController.register));
 
