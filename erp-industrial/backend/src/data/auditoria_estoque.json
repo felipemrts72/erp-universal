@@ -118,5 +118,85 @@
     "custo_unitario": 500,
     "fornecedor": "CONCACO",
     "usuario_id": 1
+  },
+  {
+    "id": 13,
+    "criado_em": "2026-03-21T01:45:06.233Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 5,
+    "quantidade": 5,
+    "custo_unitario": 25,
+    "fornecedor": "COMAGRAM",
+    "usuario_id": 1
+  },
+  {
+    "id": 14,
+    "criado_em": "2026-03-21T03:01:00.273Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 3,
+    "quantidade": 2000,
+    "custo_unitario": 8.5,
+    "fornecedor": "JADE ENGENHARIA",
+    "usuario_id": 1
+  },
+  {
+    "id": 15,
+    "criado_em": "2026-03-21T03:01:26.434Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 4,
+    "quantidade": 10,
+    "custo_unitario": 375,
+    "fornecedor": "JADE ENGENHARIA",
+    "usuario_id": 1
+  },
+  {
+    "id": 16,
+    "criado_em": "2026-03-21T03:01:42.269Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 1,
+    "quantidade": 50,
+    "custo_unitario": 25,
+    "fornecedor": "JADE ENGENHARIA",
+    "usuario_id": 1
+  },
+  {
+    "id": 17,
+    "criado_em": "2026-03-21T03:01:56.218Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 4,
+    "quantidade": 50,
+    "custo_unitario": 15,
+    "fornecedor": "JADE ENGENHARIA",
+    "usuario_id": 1
+  },
+  {
+    "id": 18,
+    "criado_em": "2026-03-21T03:07:07.766Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 2,
+    "quantidade": 50,
+    "custo_unitario": 15,
+    "fornecedor": "COMAGRAM",
+    "usuario_id": 1
+  },
+  {
+    "id": 19,
+    "criado_em": "2026-03-21T03:09:18.855Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 5,
+    "quantidade": 2,
+    "custo_unitario": 185,
+    "fornecedor": "BRG ROLAMENTOS",
+    "usuario_id": 1
+  },
+  {
+    "id": 20,
+    "criado_em": "2026-03-21T03:09:56.029Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 6,
+    "quantidade": 1,
+    "custo_unitario": 12000,
+    "fornecedor": "TOR UNIVERSAL",
+    "usuario_id": 1
   }
 ]

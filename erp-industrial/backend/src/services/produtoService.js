@@ -16,15 +16,22 @@ export const produtoService = {
       throw httpError('Tipo de produto inválido');
     }
 
+    const precisaPreco =
+      payload.tipo === 'revenda' ||
+      payload.tipo === 'fabricado' ||
+      payload.tipo === 'conjunto';
+
     // 🔐 regra de permissão
     if (user.role === 'estoquista') {
-      // estoquista NÃO pode definir preço de venda
       payload.precoVenda = null;
     } else {
-      // admin/vendedor precisa definir
-      if (payload.precoVenda == null) {
+      if (precisaPreco && payload.precoVenda == null) {
         throw httpError('Preço de venda é obrigatório');
       }
+    }
+
+    if (payload.precoVenda == null) {
+      payload.precoVenda = 0;
     }
 
     const client = await pool.connect();

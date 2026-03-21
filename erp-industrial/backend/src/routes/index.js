@@ -9,6 +9,8 @@ import { relatorioController } from '../controllers/relatorioController.js';
 import { dashboardController } from '../controllers/dashboardController.js';
 import { requisicaoController } from '../controllers/requisicaoController.js';
 import { authController } from '../controllers/authController.js';
+import { funcionarioController } from '../controllers/funcionarioController.js';
+import { consumivelController } from '../controllers/consumivelController.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 
@@ -51,6 +53,23 @@ router.patch(
   asyncHandler(requisicaoController.atenderItem),
 );
 
+// CONSUMÍVEIS
+router.post('/consumiveis', asyncHandler(consumivelController.registrar));
+
+router.get('/consumiveis', asyncHandler(consumivelController.listar));
+
+router.get('/consumiveis/alertas', asyncHandler(consumivelController.alertas));
+
+router.get(
+  '/consumiveis/relatorio-mensal',
+  asyncHandler(consumivelController.relatorioMensal),
+);
+
+router.patch(
+  '/consumiveis/:id/justificar',
+  asyncHandler(consumivelController.justificar),
+);
+
 router.get('/orcamentos', asyncHandler(orcamentoController.list));
 router.get(
   '/orcamentos/templates',
@@ -82,3 +101,10 @@ router.post(
 
 router.get('/dashboard', asyncHandler(dashboardController.resumo));
 router.get('/alertas', asyncHandler(dashboardController.alertas));
+
+// FUNCIONÁRIOS
+router.post('/funcionarios', asyncHandler(funcionarioController.create));
+router.get('/funcionarios', asyncHandler(funcionarioController.list));
+router.patch('/funcionarios/:id', asyncHandler(funcionarioController.update));
+router.delete('/funcionarios/:id', asyncHandler(funcionarioController.delete));
+router.get('/funcionarios/busca', asyncHandler(funcionarioController.buscar));
