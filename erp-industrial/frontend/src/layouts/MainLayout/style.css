@@ -1,0 +1,7 @@
+.main-layout { min-height: 100vh; }
+.main-layout__content { margin-left: 250px; min-height: 100vh; display: flex; flex-direction: column; }
+.main-layout__main { padding: 20px; display: grid; gap: 16px; }
+
+@media (max-width: 900px) {
+  .main-layout__content { margin-left: 0; }
+}
