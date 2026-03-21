@@ -51,4 +51,20 @@ export const producaoRepository = {
     );
     return rows[0].total > 0;
   },
+  async getByIdWithClient(id, client) {
+    const { rows } = await client.query(
+      `SELECT * FROM ordens_producao WHERE id = $1`,
+      [id],
+    );
+    return rows[0];
+  },
+
+  async finalizar(id, client) {
+    await client.query(
+      `UPDATE ordens_producao
+     SET status = 'finalizado'
+     WHERE id = $1`,
+      [id],
+    );
+  },
 };

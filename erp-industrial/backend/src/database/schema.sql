@@ -4,41 +4,29 @@
 CREATE TABLE IF NOT EXISTS funcionarios (
   id SERIAL PRIMARY KEY,
   nome VARCHAR(120) NOT NULL,
-  cpf VARCHAR(14) UNIQUE NOT NULL,
+  cpf VARCHAR(14) NOT NULL,
   telefone VARCHAR(20),
   email VARCHAR(120),
   setor VARCHAR(100),
+  foto_url TEXT,
   status VARCHAR(20) NOT NULL DEFAULT 'ativo' CHECK (
     status IN ('ativo', 'inativo', 'afastado')
   ),
-  criado_em TIMESTAMP DEFAULT NOW()
+  criado_em TIMESTAMP DEFAULT NOW(),
+  CONSTRAINT funcionarios_cpf_unique UNIQUE (cpf)
 );
 
 -- =========================
--- CONSUMÍVEIS 
--- =========================
-CREATE TABLE IF NOT EXISTS consumos_consumiveis (
-  id SERIAL PRIMARY KEY,
-  produto_id INTEGER NOT NULL REFERENCES produtos(id),
-  funcionario_id INTEGER NOT NULL REFERENCES funcionarios(id),
-  usuario_id INTEGER NOT NULL REFERENCES usuarios(id), 
-  setor VARCHAR(100),
-  quantidade NUMERIC(12,2) NOT NULL,
-  assinatura_url TEXT,
-  foto_url TEXT,
-  justificativa TEXT,
-  criado_em TIMESTAMP DEFAULT NOW()
-);
-
--- =========================
--- USUÁRIOS
+-- USUÁRIOS (sistema)
 -- =========================
 CREATE TABLE IF NOT EXISTS usuarios (
   id SERIAL PRIMARY KEY,
   nome VARCHAR(120) NOT NULL,
   email VARCHAR(120) UNIQUE NOT NULL,
   senha TEXT NOT NULL,
-  role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'vendedor', 'estoquista')),
+  role VARCHAR(20) NOT NULL CHECK (
+    role IN ('admin', 'vendedor', 'estoquista')
+  ),
   criado_em TIMESTAMP DEFAULT NOW()
 );
 
@@ -92,6 +80,22 @@ CREATE TABLE IF NOT EXISTS movimentos_estoque (
 );
 
 -- =========================
+-- CONSUMÍVEIS
+-- =========================
+CREATE TABLE IF NOT EXISTS consumos_consumiveis (
+  id SERIAL PRIMARY KEY,
+  produto_id INTEGER NOT NULL REFERENCES produtos(id),
+  funcionario_id INTEGER NOT NULL REFERENCES funcionarios(id),
+  usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+  setor VARCHAR(100),
+  quantidade NUMERIC(12,2) NOT NULL,
+  assinatura_url TEXT,
+  foto_url TEXT,
+  justificativa TEXT,
+  criado_em TIMESTAMP DEFAULT NOW()
+);
+
+-- =========================
 -- ORÇAMENTOS
 -- =========================
 CREATE TABLE IF NOT EXISTS orcamentos (
@@ -136,11 +140,36 @@ CREATE TABLE IF NOT EXISTS itens_pedido (
 CREATE TABLE IF NOT EXISTS ordens_producao (
   id SERIAL PRIMARY KEY,
   produto_id INTEGER NOT NULL REFERENCES produtos(id),
+  pedido_id INTEGER REFERENCES pedidos(id), -- 🔥 ligação com venda
   quantidade NUMERIC(12,2) NOT NULL,
   status VARCHAR(30) NOT NULL CHECK (
     status IN ('pendente', 'em_producao', 'finalizado')
   ) DEFAULT 'pendente',
   criado_em TIMESTAMP DEFAULT NOW()
+);
+
+-- =========================
+-- 🚚 ENTREGAS (NOVO)
+-- =========================
+CREATE TABLE IF NOT EXISTS entregas (
+  id SERIAL PRIMARY KEY,
+
+  ordem_producao_id INTEGER REFERENCES ordens_producao(id),
+  pedido_id INTEGER REFERENCES pedidos(id),
+
+  produto_id INTEGER NOT NULL REFERENCES produtos(id),
+  quantidade NUMERIC(12,2) NOT NULL,
+
+  status VARCHAR(20) NOT NULL DEFAULT 'pendente'
+    CHECK (status IN ('pendente', 'entregue')),
+
+  tipo VARCHAR(20) DEFAULT 'retirada'
+    CHECK (tipo IN ('retirada', 'transportadora')),
+
+  usuario_id INTEGER REFERENCES usuarios(id),
+
+  criado_em TIMESTAMP DEFAULT NOW(),
+  entregue_em TIMESTAMP
 );
 
 -- =========================
@@ -165,5 +194,14 @@ ON movimentos_estoque(produto_id);
 CREATE INDEX IF NOT EXISTS idx_consumos_produto_usuario
 ON consumos_consumiveis(produto_id, usuario_id);
 
+CREATE INDEX IF NOT EXISTS idx_consumos_funcionario
+ON consumos_consumiveis(funcionario_id);
+
 CREATE INDEX IF NOT EXISTS idx_consumos_data
 ON consumos_consumiveis(criado_em);
+
+CREATE INDEX IF NOT EXISTS idx_entregas_status
+ON entregas(status);
+
+CREATE INDEX IF NOT EXISTS idx_entregas_pedido
+ON entregas(pedido_id);

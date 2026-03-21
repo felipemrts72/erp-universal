@@ -11,6 +11,7 @@ import { requisicaoController } from '../controllers/requisicaoController.js';
 import { authController } from '../controllers/authController.js';
 import { funcionarioController } from '../controllers/funcionarioController.js';
 import { consumivelController } from '../controllers/consumivelController.js';
+import { entregaController } from '../controllers/entregaController.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 import { normalizeNumbers } from '../middleware/numbers.js';
@@ -27,6 +28,7 @@ router.use(normalizeNumbers);
 
 router.post('/usuarios', asyncHandler(authController.register));
 
+// PRODUTOS
 router.get('/produtos', asyncHandler(produtoController.list));
 router.post('/produtos', asyncHandler(produtoController.create));
 router.post(
@@ -35,8 +37,15 @@ router.post(
 );
 router.get('/produtos/busca', asyncHandler(produtoController.buscar));
 
+// ESTOQUE
 router.get('/estoque', asyncHandler(estoqueController.list));
 router.post('/estoque/entrada', asyncHandler(estoqueController.entrada));
+router.get('/estoque/busca', asyncHandler(estoqueController.buscar));
+router.get(
+  '/estoque/movimentos/busca',
+  asyncHandler(estoqueController.buscarMovimentos),
+);
+router.post('/estoque/ajuste', asyncHandler(estoqueController.ajuste));
 /* router.post(
   '/estoque/retirada-producao',
   asyncHandler(estoqueController.retiradaProducao),
@@ -46,6 +55,9 @@ router.post(
   asyncHandler(estoqueController.insumoExtra),
 ); */
 
+// --
+
+// REQUISIÇÕES
 router.post(
   '/ordens-producao/:ordemId/requisicao',
   asyncHandler(requisicaoController.criar),
@@ -66,12 +78,12 @@ router.get(
   '/consumiveis/relatorio-mensal',
   asyncHandler(consumivelController.relatorioMensal),
 );
-
 router.patch(
   '/consumiveis/:id/justificar',
   asyncHandler(consumivelController.justificar),
 );
 
+// ORÇAMENTOS
 router.get('/orcamentos', asyncHandler(orcamentoController.list));
 router.get(
   '/orcamentos/templates',
@@ -82,15 +94,19 @@ router.patch(
   '/orcamentos/:id/status',
   asyncHandler(orcamentoController.updateStatus),
 );
+router.get('/orcamentos/busca', asyncHandler(orcamentoController.buscar));
 
+// PEDIDOS
 router.get('/pedidos', asyncHandler(pedidoController.list));
 router.post('/pedidos', asyncHandler(pedidoController.create));
 
+// PRODUÇÕES
 router.get('/producao', asyncHandler(producaoController.list));
 router.post('/producao', asyncHandler(producaoController.create));
 router.post('/producao/iniciar', asyncHandler(producaoController.iniciar));
 router.post('/producao/finalizar', asyncHandler(producaoController.finalizar));
 
+// RELATÓRIOS-PRODUÇÃO
 router.get('/relatorios-producao', asyncHandler(relatorioController.list));
 router.post(
   '/relatorios-producao',
@@ -101,6 +117,7 @@ router.post(
   asyncHandler(relatorioController.create),
 );
 
+// DASHBOARD
 router.get('/dashboard', asyncHandler(dashboardController.resumo));
 router.get('/alertas', asyncHandler(dashboardController.alertas));
 
@@ -110,3 +127,12 @@ router.get('/funcionarios', asyncHandler(funcionarioController.list));
 router.patch('/funcionarios/:id', asyncHandler(funcionarioController.update));
 router.delete('/funcionarios/:id', asyncHandler(funcionarioController.delete));
 router.get('/funcionarios/busca', asyncHandler(funcionarioController.buscar));
+
+// ENTREGAS
+router.get('/entregas/pendentes', asyncHandler(entregaController.pendentes));
+router.get('/entregas', asyncHandler(entregaController.listar));
+
+router.patch(
+  '/entregas/:id/entregar',
+  asyncHandler(entregaController.entregar),
+);
