@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import Card from '../../components/Card';
 import DataTable from '../../components/DataTable';
-import Autocomplete from '../../components/Autocomplete';
+import buscamanual from '../../components/buscamanual';
 
 import './style.css';
 
@@ -16,7 +16,9 @@ export default function Produtos() {
     setItems(Array.isArray(data) ? data : data.items || []);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const createProduto = async (e) => {
     e.preventDefault();
@@ -33,22 +35,57 @@ export default function Produtos() {
 
   return (
     <>
-      <Card title='Cadastrar produto'>
-        <form className='form-grid' onSubmit={createProduto}>
-          <label className='form-control'>Nome<input value={form.nome} onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))} required /></label>
-          <label className='form-control'>Preço<input type='number' value={form.preco} onChange={(e) => setForm((p) => ({ ...p, preco: e.target.value }))} required /></label>
-          <button className='btn btn--primary' type='submit'>Criar</button>
+      <Card title="Cadastrar produto">
+        <form className="form-grid" onSubmit={createProduto}>
+          <label className="form-control">
+            Nome
+            <input
+              value={form.nome}
+              onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))}
+              required
+            />
+          </label>
+          <label className="form-control">
+            Preço
+            <input
+              type="number"
+              value={form.preco}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, preco: e.target.value }))
+              }
+              required
+            />
+          </label>
+          <button className="btn btn--primary" type="submit">
+            Criar
+          </button>
         </form>
       </Card>
 
-      <Card title='Adicionar componentes'>
-        <Autocomplete endpoint='/produtos/busca' label='Buscar componente' placeholder='Digite ao menos 3 caracteres' onSelect={(id) => setComponenteId(id)} />
+      <Card title="Adicionar componentes">
+        <buscamanual
+          endpoint="/produtos/busca"
+          label="Buscar componente"
+          placeholder="Digite ao menos 3 caracteres"
+          onSelect={(id) => setComponenteId(id)}
+        />
         <DataTable
           columns={[
             { key: 'id', label: 'ID' },
             { key: 'nome', label: 'Nome' },
             { key: 'preco', label: 'Preço' },
-            { key: 'acao', label: 'Ação', render: (_, row) => <button className='btn btn--secondary' onClick={() => addComponente(row.id)}>Vincular</button> }
+            {
+              key: 'acao',
+              label: 'Ação',
+              render: (_, row) => (
+                <button
+                  className="btn btn--secondary"
+                  onClick={() => addComponente(row.id)}
+                >
+                  Vincular
+                </button>
+              ),
+            },
           ]}
           rows={items}
         />

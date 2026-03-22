@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import Card from '../../components/Card';
 import DataTable from '../../components/DataTable';
-import Autocomplete from '../../components/Autocomplete';
+import buscamanual from '../../components/buscamanual';
 
 import './style.css';
 
@@ -16,7 +16,9 @@ export default function Funcionarios() {
     setItems(data || []);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const save = async () => {
     if (selectedId) {
@@ -31,15 +33,50 @@ export default function Funcionarios() {
 
   return (
     <>
-      <Card title='Cadastro de funcionários'>
-        <Autocomplete endpoint='/funcionarios/busca' label='Buscar funcionário para edição' placeholder='Digite nome ou matrícula' onSelect={(id, item) => { setSelectedId(id); setForm({ nome: item.nome || '', cargo: item.cargo || '' }); }} />
-        <div className='form-grid'>
-          <label className='form-control'>Nome<input value={form.nome} onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))} /></label>
-          <label className='form-control'>Cargo<input value={form.cargo} onChange={(e) => setForm((p) => ({ ...p, cargo: e.target.value }))} /></label>
+      <Card title="Cadastro de funcionários">
+        <buscamanual
+          endpoint="/funcionarios/busca"
+          label="Buscar funcionário para edição"
+          placeholder="Digite nome ou matrícula"
+          onSelect={(id, item) => {
+            setSelectedId(id);
+            setForm({ nome: item.nome || '', cargo: item.cargo || '' });
+          }}
+        />
+        <div className="form-grid">
+          <label className="form-control">
+            Nome
+            <input
+              value={form.nome}
+              onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))}
+            />
+          </label>
+          <label className="form-control">
+            Cargo
+            <input
+              value={form.cargo}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, cargo: e.target.value }))
+              }
+            />
+          </label>
         </div>
-        <div className='page-actions'><button className='btn btn--primary' onClick={save}>{selectedId ? 'Salvar edição' : 'Criar funcionário'}</button></div>
+        <div className="page-actions">
+          <button className="btn btn--primary" onClick={save}>
+            {selectedId ? 'Salvar edição' : 'Criar funcionário'}
+          </button>
+        </div>
       </Card>
-      <Card title='Listagem'><DataTable columns={[{ key: 'id', label: 'ID' }, { key: 'nome', label: 'Nome' }, { key: 'cargo', label: 'Cargo' }]} rows={items} /></Card>
+      <Card title="Listagem">
+        <DataTable
+          columns={[
+            { key: 'id', label: 'ID' },
+            { key: 'nome', label: 'Nome' },
+            { key: 'cargo', label: 'Cargo' },
+          ]}
+          rows={items}
+        />
+      </Card>
     </>
   );
 }

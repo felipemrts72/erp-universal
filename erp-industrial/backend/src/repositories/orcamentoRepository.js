@@ -2,40 +2,48 @@ import { pool } from '../database/pool.js';
 import { orcamentoMetaRepository } from './orcamentoMetaRepository.js';
 
 export const orcamentoRepository = {
-  async create({ clienteNome, itens }) {
+  async create({ clienteNome, cliente_id, desconto_geral = 0, itens }) {
     const client = await pool.connect();
+
     try {
       await client.query('BEGIN');
+
       const orcamento = await client.query(
-        `INSERT INTO orcamentos (cliente_nome) VALUES ($1) RETURNING *`,
-        [clienteNome],
+        `INSERT INTO orcamentos (cliente_nome, cliente_id, desconto_geral)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+        [clienteNome, cliente_id || null, desconto_geral || 0],
       );
 
       const itensCriados = [];
+
       for (const item of itens) {
         const insert = await client.query(
-          `INSERT INTO itens_orcamento (orcamento_id, produto_id, quantidade, preco_unitario)
-           VALUES ($1,$2,$3,$4)
-           RETURNING *`,
+          `INSERT INTO itens_orcamento
+         (
+           orcamento_id,
+           produto_id,
+           quantidade,
+           preco_unitario,
+           desconto_valor,
+           desconto_percentual
+         )
+         VALUES ($1,$2,$3,$4,$5,$6)
+         RETURNING *`,
           [
             orcamento.rows[0].id,
             item.produto_id,
             item.quantidade,
             item.preco_customizado ?? item.preco_unitario,
+            item.desconto_valor || 0,
+            item.desconto_percentual || 0,
           ],
         );
+
         itensCriados.push(insert.rows[0]);
       }
-      await client.query('COMMIT');
 
-      for (let i = 0; i < itensCriados.length; i += 1) {
-        if (itens[i].nome_customizado) {
-          await orcamentoMetaRepository.salvarNomeCustomizado(
-            itensCriados[i].id,
-            itens[i].nome_customizado,
-          );
-        }
-      }
+      await client.query('COMMIT');
 
       return { ...orcamento.rows[0], itens: itensCriados };
     } catch (error) {

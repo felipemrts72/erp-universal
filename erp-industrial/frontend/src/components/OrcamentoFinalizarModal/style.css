@@ -1,0 +1,149 @@
+.orcamento-modal__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  backdrop-filter: blur(3px);
+}
+
+.orcamento-modal {
+  width: 100%;
+  max-width: 560px;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  animation: modalFadeIn 0.18s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.orcamento-modal__header {
+  padding: 24px 24px 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.orcamento-modal__header h2 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.2;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.orcamento-modal__body {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.orcamento-modal__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 15px;
+  color: #475569;
+}
+
+.orcamento-modal__row strong {
+  color: #0f172a;
+  font-size: 16px;
+}
+
+.orcamento-modal__row--total {
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.orcamento-modal__row--total span {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.orcamento-modal__row--total strong {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.orcamento-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.orcamento-modal__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.orcamento-modal__discount {
+  display: flex;
+  gap: 10px;
+}
+
+.orcamento-modal__input {
+  flex: 1;
+  height: 44px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 0 14px;
+  font-size: 14px;
+  color: #0f172a;
+  outline: none;
+  background: #fff;
+}
+
+.orcamento-modal__input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.orcamento-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px 24px;
+  border-top: 1px solid #f1f5f9;
+}
+
+@media (max-width: 640px) {
+  .orcamento-modal {
+    max-width: 100%;
+  }
+
+  .orcamento-modal__header h2 {
+    font-size: 22px;
+  }
+
+  .orcamento-modal__discount {
+    flex-direction: column;
+  }
+
+  .orcamento-modal__footer {
+    flex-direction: column-reverse;
+  }
+
+  .orcamento-modal__footer .btn {
+    width: 100%;
+  }
+}

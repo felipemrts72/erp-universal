@@ -1,1 +1,155 @@
-/* estilos específicos de Orçamentos */
+.orcamentos-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.orcamentos-page__top {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.orcamentos-page__cliente {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.orcamentos-page__totais {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.orcamentos-page__total-card {
+  background: #f3f8ff;
+  border: 1px solid #d9e7ff;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.orcamentos-page__total-label {
+  font-size: 13px;
+  color: #47607e;
+}
+
+.orcamentos-page__total-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #163a70;
+}
+
+.orcamentos-page__item-form {
+  display: grid;
+  grid-template-columns: 2fr 0.9fr 1fr 1fr 2fr auto;
+  gap: 18px;
+  align-items: end;
+}
+
+.orcamentos-page__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.orcamentos-page__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #324a67;
+}
+
+.orcamentos-page__input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #cfd9e6;
+  border-radius: 12px;
+  outline: none;
+  background: #fff;
+}
+
+.orcamentos-page__input:focus {
+  border-color: #4f98ff;
+  box-shadow: 0 0 0 3px rgba(79, 152, 255, 0.12);
+}
+
+.orcamentos-page__items-table {
+  margin-top: 4px;
+}
+
+.orcamentos-page__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: end;
+}
+
+.orcamentos-page__search {
+  flex: 1;
+}
+
+.orcamentos-page__actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.orcamentos-page__search-result {
+  display: inline-block;
+  margin-top: 8px;
+  color: #39597f;
+  font-size: 14px;
+}
+
+.success {
+  color: #0f7b3b;
+  margin-bottom: 12px;
+}
+
+.error {
+  color: #c53939;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 1100px) {
+  .orcamentos-page__top {
+    grid-template-columns: 1fr;
+  }
+
+  .orcamentos-page__totais {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .orcamentos-page__item-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .orcamentos-page__footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .orcamentos-page__actions {
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 700px) {
+  .orcamentos-page__totais {
+    grid-template-columns: 1fr;
+  }
+
+  .orcamentos-page__item-form {
+    grid-template-columns: 1fr;
+  }
+
+  .orcamentos-page__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

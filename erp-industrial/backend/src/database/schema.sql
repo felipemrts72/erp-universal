@@ -31,6 +31,23 @@ CREATE TABLE IF NOT EXISTS usuarios (
 );
 
 -- =========================
+-- CLIENTES
+-- =========================
+CREATE TABLE IF NOT EXISTS clientes (
+  id SERIAL PRIMARY KEY,
+  nome VARCHAR(120) NOT NULL,
+  cpf_cnpj VARCHAR(20),
+  telefone VARCHAR(20),
+  email VARCHAR(120),
+  endereco TEXT,
+  observacoes TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'ativo' CHECK (
+    status IN ('ativo', 'inativo')
+  ),
+  criado_em TIMESTAMP DEFAULT NOW()
+);
+
+-- =========================
 -- PRODUTOS
 -- =========================
 CREATE TABLE IF NOT EXISTS produtos (
@@ -100,7 +117,9 @@ CREATE TABLE IF NOT EXISTS consumos_consumiveis (
 -- =========================
 CREATE TABLE IF NOT EXISTS orcamentos (
   id SERIAL PRIMARY KEY,
+  cliente_id INTEGER REFERENCES clientes(id) ON DELETE SET NULL,
   cliente_nome VARCHAR(120) NOT NULL,
+  desconto_geral NUMERIC(12,2) NOT NULL DEFAULT 0,
   status VARCHAR(20) NOT NULL CHECK (
     status IN ('rascunho', 'enviado', 'aprovado', 'rejeitado')
   ) DEFAULT 'rascunho',
@@ -111,8 +130,19 @@ CREATE TABLE IF NOT EXISTS itens_orcamento (
   id SERIAL PRIMARY KEY,
   orcamento_id INTEGER NOT NULL REFERENCES orcamentos(id) ON DELETE CASCADE,
   produto_id INTEGER NOT NULL REFERENCES produtos(id),
-  quantidade NUMERIC(12,2) NOT NULL,
-  preco_unitario NUMERIC(12,2) NOT NULL
+  quantidade NUMERIC(12,2) NOT NULL CHECK (quantidade > 0),
+  preco_unitario NUMERIC(12,2) NOT NULL CHECK (preco_unitario >= 0),
+
+  -- desconto por item/unidade
+  desconto_valor NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (desconto_valor >= 0),
+
+  -- desconto percentual da linha
+  desconto_percentual NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (
+    desconto_percentual >= 0 AND desconto_percentual <= 100
+  ),
+
+  -- descrição customizada opcional
+  nome_customizado VARCHAR(200)
 );
 
 -- =========================
@@ -121,6 +151,7 @@ CREATE TABLE IF NOT EXISTS itens_orcamento (
 CREATE TABLE IF NOT EXISTS pedidos (
   id SERIAL PRIMARY KEY,
   orcamento_id INTEGER REFERENCES orcamentos(id),
+  cliente_id INTEGER REFERENCES clientes(id) ON DELETE SET NULL,
   cliente_nome VARCHAR(120) NOT NULL,
   status VARCHAR(30) DEFAULT 'aberto',
   criado_em TIMESTAMP DEFAULT NOW()
@@ -140,7 +171,7 @@ CREATE TABLE IF NOT EXISTS itens_pedido (
 CREATE TABLE IF NOT EXISTS ordens_producao (
   id SERIAL PRIMARY KEY,
   produto_id INTEGER NOT NULL REFERENCES produtos(id),
-  pedido_id INTEGER REFERENCES pedidos(id), -- 🔥 ligação com venda
+  pedido_id INTEGER REFERENCES pedidos(id),
   quantidade NUMERIC(12,2) NOT NULL,
   status VARCHAR(30) NOT NULL CHECK (
     status IN ('pendente', 'em_producao', 'finalizado')
@@ -149,25 +180,19 @@ CREATE TABLE IF NOT EXISTS ordens_producao (
 );
 
 -- =========================
--- 🚚 ENTREGAS (NOVO)
+-- ENTREGAS
 -- =========================
 CREATE TABLE IF NOT EXISTS entregas (
   id SERIAL PRIMARY KEY,
-
   ordem_producao_id INTEGER REFERENCES ordens_producao(id),
   pedido_id INTEGER REFERENCES pedidos(id),
-
   produto_id INTEGER NOT NULL REFERENCES produtos(id),
   quantidade NUMERIC(12,2) NOT NULL,
-
   status VARCHAR(20) NOT NULL DEFAULT 'pendente'
     CHECK (status IN ('pendente', 'entregue')),
-
   tipo VARCHAR(20) DEFAULT 'retirada'
     CHECK (tipo IN ('retirada', 'transportadora')),
-
   usuario_id INTEGER REFERENCES usuarios(id),
-
   criado_em TIMESTAMP DEFAULT NOW(),
   entregue_em TIMESTAMP
 );
@@ -186,8 +211,23 @@ CREATE TABLE IF NOT EXISTS relatorios_producao (
 );
 
 -- =========================
--- ÍNDICES (performance)
+-- ÍNDICES
 -- =========================
+CREATE INDEX IF NOT EXISTS idx_clientes_nome
+ON clientes(nome);
+
+CREATE INDEX IF NOT EXISTS idx_clientes_cpf_cnpj
+ON clientes(cpf_cnpj);
+
+CREATE INDEX IF NOT EXISTS idx_orcamentos_cliente_id
+ON orcamentos(cliente_id);
+
+CREATE INDEX IF NOT EXISTS idx_orcamentos_status
+ON orcamentos(status);
+
+CREATE INDEX IF NOT EXISTS idx_itens_orcamento_orcamento
+ON itens_orcamento(orcamento_id);
+
 CREATE INDEX IF NOT EXISTS idx_movimentos_produto
 ON movimentos_estoque(produto_id);
 

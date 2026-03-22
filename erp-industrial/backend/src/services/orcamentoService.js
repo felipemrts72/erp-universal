@@ -33,6 +33,7 @@ export const orcamentoService = {
       if (!item.produto_id || !item.quantidade) {
         throw httpError('Cada item precisa de produto_id e quantidade');
       }
+
       if (item.preco_customizado == null && item.preco_unitario == null) {
         throw httpError(
           'Cada item precisa de preco_customizado ou preco_unitario',
@@ -40,7 +41,12 @@ export const orcamentoService = {
       }
     });
 
-    return orcamentoRepository.create(payload);
+    return orcamentoRepository.create({
+      clienteNome: payload.clienteNome,
+      cliente_id: payload.cliente_id || null,
+      desconto_geral: payload.desconto_geral || 0,
+      itens: payload.itens,
+    });
   },
 
   async aprovarOrcamento(id) {

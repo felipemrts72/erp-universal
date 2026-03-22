@@ -12,6 +12,7 @@ import { authController } from '../controllers/authController.js';
 import { funcionarioController } from '../controllers/funcionarioController.js';
 import { consumivelController } from '../controllers/consumivelController.js';
 import { entregaController } from '../controllers/entregaController.js';
+import { clienteController } from '../controllers/clienteController.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 import { normalizeNumbers } from '../middleware/numbers.js';
@@ -136,3 +137,10 @@ router.patch(
   '/entregas/:id/entregar',
   asyncHandler(entregaController.entregar),
 );
+
+// CLIENTES
+router.post('/clientes', asyncHandler(clienteController.create));
+router.get('/clientes', asyncHandler(clienteController.list));
+router.patch('/clientes/:id', asyncHandler(clienteController.update));
+router.delete('/clientes/:id', asyncHandler(clienteController.delete));
+router.get('/clientes/busca', asyncHandler(clienteController.buscar));
