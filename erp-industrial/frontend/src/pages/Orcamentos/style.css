@@ -115,6 +115,102 @@
   color: #c53939;
   margin-bottom: 12px;
 }
+.orcamentos-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+
+.orcamentos-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 32, 56, 0.24);
+  backdrop-filter: blur(4px);
+}
+
+.orcamentos-modal__card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(560px, calc(100vw - 32px));
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border-radius: 22px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.18);
+  padding: 24px;
+}
+
+.orcamentos-modal__title {
+  margin: 0 0 20px;
+  font-size: 20px;
+  font-weight: 800;
+  color: #1f2c44;
+}
+
+.orcamentos-modal__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.orcamentos-modal__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  font-size: 16px;
+  color: #30445f;
+}
+
+.orcamentos-modal__row strong {
+  color: #17273f;
+  font-size: 18px;
+}
+
+.orcamentos-modal__row--total {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid #d8e2f0;
+}
+
+.orcamentos-modal__row--total strong {
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.orcamentos-modal__discount-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.orcamentos-modal__label {
+  font-size: 15px;
+  font-weight: 700;
+  color: #30445f;
+}
+
+.orcamentos-modal__discount-action {
+  display: flex;
+  gap: 10px;
+}
+
+.orcamentos-modal__input {
+  flex: 1;
+  min-height: 46px;
+  border: 1px solid #cfd9e6;
+  border-radius: 12px;
+  padding: 0 14px;
+  font-size: 16px;
+}
+
+.orcamentos-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
 
 @media (max-width: 1100px) {
   .orcamentos-page__top {
@@ -151,5 +247,14 @@
   .orcamentos-page__actions {
     flex-direction: column;
     align-items: stretch;
+  }
+}
+@media (max-width: 640px) {
+  .orcamentos-modal__discount-action {
+    flex-direction: column;
+  }
+
+  .orcamentos-modal__actions {
+    flex-direction: column;
   }
 }

@@ -102,7 +102,7 @@ export const consumivelService = {
       const fotoUrl = foto ? salvarBase64(foto, 'photos') : null;
 
       // 🔥 baixa estoque
-      await estoqueRepository.criarMovimentoEstoque(
+      await estoqueRepository.criarMovimento(
         {
           produtoId: produto_id,
           quantidade: -quantidade,

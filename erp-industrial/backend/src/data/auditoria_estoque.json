@@ -198,5 +198,25 @@
     "custo_unitario": 12000,
     "fornecedor": "TOR UNIVERSAL",
     "usuario_id": 1
+  },
+  {
+    "id": 21,
+    "criado_em": "2026-04-05T02:22:28.247Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 9,
+    "quantidade": 10,
+    "custo_unitario": 1200,
+    "fornecedor": "Torneadora Universal",
+    "usuario_id": 1
+  },
+  {
+    "id": 22,
+    "criado_em": "2026-04-05T02:34:48.361Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 2,
+    "quantidade": 10,
+    "custo_unitario": 15,
+    "fornecedor": "COMAGRAM",
+    "usuario_id": 1
   }
 ]

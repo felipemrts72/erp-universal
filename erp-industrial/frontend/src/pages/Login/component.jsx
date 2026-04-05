@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import useAuth from '../../hooks/useAuth';
-import LoadingSpinner from '../../components/LoadingSpinner';
+import LoadingModal from '../../components/LoadingModal';
 import './style.css';
 
 export default function Login() {
@@ -23,21 +23,33 @@ export default function Login() {
   };
 
   return (
-    <div className='login'>
-      <form className='login__card' onSubmit={handleSubmit}>
-        <h1 className='login__title'>ERP Industrial</h1>
-        <p className='login__subtitle'>Acesse com seu usuário corporativo.</p>
-        <label className='form-control'>
+    <div className="login">
+      <form className="login__card" onSubmit={handleSubmit}>
+        <h1 className="login__title">ERP Industrial</h1>
+        <p className="login__subtitle">Acesse com seu usuário corporativo.</p>
+        <label className="form-control">
           Email
-          <input type='email' value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} required />
+          <input
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+            required
+          />
         </label>
-        <label className='form-control'>
+        <label className="form-control">
           Senha
-          <input type='password' value={form.senha} onChange={(e) => setForm((p) => ({ ...p, senha: e.target.value }))} required />
+          <input
+            type="password"
+            value={form.senha}
+            onChange={(e) => setForm((p) => ({ ...p, senha: e.target.value }))}
+            required
+          />
         </label>
-        {error && <p className='login__error'>{error}</p>}
-        <button className='btn btn--primary' type='submit' disabled={loading}>{loading ? 'Entrando...' : 'Entrar'}</button>
-        {loading && <LoadingSpinner />}
+        {error && <p className="login__error">{error}</p>}
+        <button className="btn btn--primary" type="submit" disabled={loading}>
+          {loading ? 'Entrando...' : 'Entrar'}
+        </button>
+        {loading && <LoadingModal />}
       </form>
     </div>
   );

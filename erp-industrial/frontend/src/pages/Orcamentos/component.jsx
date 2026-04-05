@@ -4,8 +4,12 @@ import Card from '../../components/Card';
 import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import BuscaManual from '../../components/BuscaManual';
-import LoadingSpinner from '../../components/LoadingSpinner';
+import LoadingModal from '../../components/LoadingModal';
 import OrcamentoFinalizarModal from '../../components/OrcamentoFinalizarModal';
+import {
+  gerarHtmlDocumento,
+  imprimirDocumento,
+} from '../../utils/documentoPrint';
 
 import './style.css';
 
@@ -47,6 +51,13 @@ export default function Orcamentos() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const [modalVendaOpen, setModalVendaOpen] = useState(false);
+  const [descontoGeralVenda, setDescontoGeralVenda] = useState(0);
+  const [loadingVenda, setLoadingVenda] = useState(false);
+
+  const [modalImpressaoOpen, setModalImpressaoOpen] = useState(false);
+  const [documentoParaImprimir, setDocumentoParaImprimir] = useState(null);
 
   const load = async () => {
     try {
@@ -101,6 +112,41 @@ export default function Orcamentos() {
       liquido,
     };
   }, [itens, descontoGeral]);
+
+  const totaisVenda = useMemo(() => {
+    const bruto = itens.reduce(
+      (acc, item) =>
+        acc + toNumber(item.quantidade) * toNumber(item.preco_unitario),
+      0,
+    );
+
+    const descontoItens = itens.reduce((acc, item) => {
+      const quantidade = toNumber(item.quantidade);
+      const preco = toNumber(item.preco_unitario);
+      const subtotal = quantidade * preco;
+
+      const descontoValor = toNumber(item.desconto_valor);
+      const descontoPercentual = toNumber(item.desconto_percentual);
+
+      const descontoCalculado =
+        descontoValor > 0
+          ? descontoValor * quantidade
+          : subtotal * (descontoPercentual / 100);
+
+      return acc + descontoCalculado;
+    }, 0);
+
+    const descontoExtra = toNumber(descontoGeralVenda);
+    const liquido = Math.max(bruto - descontoItens - descontoExtra, 0);
+
+    return {
+      itens: itens.length,
+      bruto,
+      descontoItens,
+      descontoGeral: descontoExtra,
+      liquido,
+    };
+  }, [itens, descontoGeralVenda]);
 
   const handleProdutoSelect = (id, item) => {
     if (item?.tipo === 'consumivel') {
@@ -196,6 +242,21 @@ export default function Orcamentos() {
     setModalOpen(true);
   };
 
+  const abrirModalVenda = () => {
+    if (!clienteNome.trim()) {
+      setError('Informe o nome do cliente');
+      return;
+    }
+
+    if (!itens.length) {
+      setError('Adicione pelo menos um item ao orçamento');
+      return;
+    }
+
+    setDescontoGeralVenda(descontoGeral || 0);
+    setModalVendaOpen(true);
+  };
+
   const confirmarSalvarOrcamento = async ({ descontoGeral: descontoModal }) => {
     setError('');
     setSuccess('');
@@ -220,6 +281,49 @@ export default function Orcamentos() {
     try {
       setSaving(true);
       await api.post('/orcamentos', payload);
+
+      setDocumentoParaImprimir({
+        tipo: 'orcamento',
+        cliente: {
+          nome: clienteNome,
+          endereco: '',
+          cidade: '',
+          cep: '',
+        },
+        itens: itens.map((item) => {
+          const quantidade = toNumber(item.quantidade);
+          const preco = toNumber(item.preco_unitario);
+          const subtotal = quantidade * preco;
+
+          const descontoValor = toNumber(item.desconto_valor);
+          const descontoPercentual = toNumber(item.desconto_percentual);
+
+          const descontoCalculado =
+            descontoValor > 0
+              ? descontoValor * quantidade
+              : subtotal * (descontoPercentual / 100);
+
+          return {
+            ...item,
+            desconto_label:
+              descontoValor > 0
+                ? formatMoney(descontoValor)
+                : `${descontoPercentual || 0}%`,
+            total_liquido: subtotal - descontoCalculado,
+          };
+        }),
+        totais: {
+          bruto: totais.bruto,
+          descontoItens: totais.descontoItens,
+          descontoGeral: toNumber(descontoModal),
+          liquido: Math.max(
+            totais.bruto - totais.descontoItens - toNumber(descontoModal),
+            0,
+          ),
+        },
+      });
+
+      setModalImpressaoOpen(true);
       setDescontoGeral(descontoModal);
       setSuccess('Orçamento salvo com sucesso');
       setModalOpen(false);
@@ -230,6 +334,87 @@ export default function Orcamentos() {
       setError(err?.response?.data?.message || 'Erro ao salvar orçamento');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const lancarVenda = async () => {
+    setError('');
+    setSuccess('');
+
+    const payload = {
+      clienteNome,
+      cliente_id: clienteId || null,
+      desconto_geral: toNumber(descontoGeralVenda),
+      itens: itens.map((item) => ({
+        produto_id: item.produto_id,
+        quantidade: toNumber(item.quantidade),
+        preco_unitario: toNumber(item.preco_unitario),
+        desconto_valor: toNumber(item.desconto_valor),
+        desconto_percentual: toNumber(item.desconto_percentual),
+        nome_customizado:
+          item.nome_customizado && item.nome_customizado !== item.produto_nome
+            ? item.nome_customizado
+            : undefined,
+      })),
+    };
+
+    try {
+      setLoadingVenda(true);
+      await api.post('/orcamentos/venda', payload);
+
+      setDocumentoParaImprimir({
+        tipo: 'venda',
+        cliente: {
+          nome: clienteNome,
+          endereco: '',
+          cidade: '',
+          cep: '',
+        },
+        itens: itens.map((item) => {
+          const quantidade = toNumber(item.quantidade);
+          const preco = toNumber(item.preco_unitario);
+          const subtotal = quantidade * preco;
+
+          const descontoValor = toNumber(item.desconto_valor);
+          const descontoPercentual = toNumber(item.desconto_percentual);
+
+          const descontoCalculado =
+            descontoValor > 0
+              ? descontoValor * quantidade
+              : subtotal * (descontoPercentual / 100);
+
+          return {
+            ...item,
+            desconto_label:
+              descontoValor > 0
+                ? formatMoney(descontoValor)
+                : `${descontoPercentual || 0}%`,
+            total_liquido: subtotal - descontoCalculado,
+          };
+        }),
+        totais: {
+          bruto: totaisVenda.bruto,
+          descontoItens: totaisVenda.descontoItens,
+          descontoGeral: totaisVenda.descontoGeral,
+          liquido: totaisVenda.liquido,
+        },
+      });
+
+      setModalImpressaoOpen(true);
+      setSuccess('Venda lançada com sucesso');
+      setModalVendaOpen(false);
+      setClienteNome('');
+      setClienteId(null);
+      setItens([]);
+      setItemForm(initialItem);
+      setDescontoGeral(0);
+      setDescontoGeralVenda(0);
+
+      await load();
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Erro ao lançar venda');
+    } finally {
+      setLoadingVenda(false);
     }
   };
 
@@ -282,7 +467,7 @@ export default function Orcamentos() {
 
   return (
     <>
-      {(loading || saving) && <LoadingSpinner />}
+      {(loading || saving) && <LoadingModal />}
       {error && <p className="error">{error}</p>}
       {success && <p className="success">{success}</p>}
 
@@ -460,33 +645,26 @@ export default function Orcamentos() {
             </button>
 
             <button
-              className="btn btn--primary"
+              className="btn btn--secondary"
               onClick={abrirModalSalvar}
               disabled={saving}
               type="button"
             >
               Salvar orçamento
             </button>
+
+            <button
+              className="btn btn--primary"
+              onClick={abrirModalVenda}
+              type="button"
+            >
+              Lançar venda
+            </button>
           </div>
         </div>
       </Card>
 
       <Card title="Lista de orçamentos">
-        <div className="orcamentos-page__search" style={{ marginBottom: 16 }}>
-          <BuscaManual
-            endpoint="/orcamentos/busca"
-            label="Buscar orçamento"
-            placeholder="Digite 3 letras, aperte Enter ou clique na lupa"
-            onSelect={(id) => setBuscaId(id)}
-          />
-
-          {buscaId && (
-            <span className="orcamentos-page__search-result">
-              Orçamento selecionado: #{buscaId}
-            </span>
-          )}
-        </div>
-
         <DataTable
           columns={[
             { key: 'id', label: 'ID' },
@@ -500,22 +678,35 @@ export default function Orcamentos() {
               key: 'acoes',
               label: 'Ações',
               render: (_, row) => {
-                const podeAlterar =
-                  row.status === 'rascunho' || row.status === 'enviado';
+                if (row.status === 'aprovado') {
+                  return (
+                    <span className="orcamentos-page__status-text orcamentos-page__status-text--success">
+                      Orçamento aprovado
+                    </span>
+                  );
+                }
+
+                if (row.status === 'rejeitado') {
+                  return (
+                    <span className="orcamentos-page__status-text orcamentos-page__status-text--danger">
+                      Orçamento rejeitado
+                    </span>
+                  );
+                }
 
                 return (
                   <div className="page-actions">
                     <button
                       className="btn btn--primary"
                       onClick={() => decide(row.id, 'aprovado')}
-                      disabled={loading || !podeAlterar}
+                      disabled={loading}
                     >
                       Aprovar
                     </button>
                     <button
                       className="btn btn--secondary"
                       onClick={() => decide(row.id, 'rejeitado')}
-                      disabled={loading || !podeAlterar}
+                      disabled={loading}
                     >
                       Rejeitar
                     </button>
@@ -527,6 +718,137 @@ export default function Orcamentos() {
           rows={rowsOrcamentos}
         />
       </Card>
+
+      {modalVendaOpen && (
+        <div className="orcamentos-modal">
+          <div
+            className="orcamentos-modal__backdrop"
+            onClick={() => setModalVendaOpen(false)}
+          />
+
+          <div className="orcamentos-modal__card">
+            <h2 className="orcamentos-modal__title">
+              Deseja finalizar esta venda?
+            </h2>
+
+            <div className="orcamentos-modal__summary">
+              <div className="orcamentos-modal__row">
+                <span>Itens</span>
+                <strong>{totaisVenda.itens}</strong>
+              </div>
+
+              <div className="orcamentos-modal__row">
+                <span>Total bruto</span>
+                <strong>{formatMoney(totaisVenda.bruto)}</strong>
+              </div>
+
+              <div className="orcamentos-modal__row">
+                <span>Desconto dos itens</span>
+                <strong>{formatMoney(totaisVenda.descontoItens)}</strong>
+              </div>
+
+              <div className="orcamentos-modal__discount-box">
+                <label className="orcamentos-modal__label">
+                  Desconto geral
+                </label>
+
+                <div className="orcamentos-modal__discount-action">
+                  <input
+                    className="orcamentos-modal__input"
+                    value={descontoGeralVenda}
+                    onChange={(e) => setDescontoGeralVenda(e.target.value)}
+                    placeholder="0,00"
+                  />
+                  <button
+                    className="btn btn--secondary"
+                    type="button"
+                    onClick={() => setDescontoGeralVenda(descontoGeralVenda)}
+                  >
+                    Aplicar desconto
+                  </button>
+                </div>
+              </div>
+
+              <div className="orcamentos-modal__row orcamentos-modal__row--total">
+                <span>Total líquido</span>
+                <strong>{formatMoney(totaisVenda.liquido)}</strong>
+              </div>
+            </div>
+
+            <div className="orcamentos-modal__actions">
+              <button
+                className="btn btn--secondary"
+                type="button"
+                onClick={() => setModalVendaOpen(false)}
+              >
+                Cancelar
+              </button>
+
+              <button
+                className="btn btn--primary"
+                type="button"
+                onClick={lancarVenda}
+                disabled={loadingVenda}
+              >
+                {loadingVenda ? 'Lançando...' : 'Lançar venda'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalImpressaoOpen && (
+        <div className="orcamentos-modal">
+          <div
+            className="orcamentos-modal__backdrop"
+            onClick={() => setModalImpressaoOpen(false)}
+          />
+
+          <div className="orcamentos-modal__card">
+            <h2 className="orcamentos-modal__title">
+              Deseja imprimir este documento?
+            </h2>
+
+            <div className="orcamentos-modal__actions">
+              <button
+                className="btn btn--secondary"
+                type="button"
+                onClick={() => setModalImpressaoOpen(false)}
+              >
+                Não
+              </button>
+
+              <button
+                className="btn btn--primary"
+                type="button"
+                onClick={() => {
+                  const html = gerarHtmlDocumento({
+                    tipo: documentoParaImprimir.tipo,
+                    empresa: {
+                      nome: 'Torneadora Universal',
+                      logoUrl: '/logo.png',
+                      endereco: 'Seu endereço aqui',
+                      cidade: 'Sua cidade',
+                      estado: 'MT',
+                      telefone: '(66) 99999-9999',
+                      email: 'contato@empresa.com',
+                    },
+                    cliente: documentoParaImprimir.cliente,
+                    itens: documentoParaImprimir.itens,
+                    totais: documentoParaImprimir.totais,
+                    assinaturaProprietarioUrl: '/assinatura-proprietario.png',
+                  });
+
+                  imprimirDocumento(html);
+                  setModalImpressaoOpen(false);
+                }}
+              >
+                Sim, imprimir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <OrcamentoFinalizarModal
         open={modalOpen}

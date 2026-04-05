@@ -1,5 +1,6 @@
 import { orcamentoRepository } from '../repositories/orcamentoRepository.js';
 import { httpError } from '../utils/httpError.js';
+import { pedidoService } from './pedidoService.js';
 
 const templates = [
   {
@@ -48,7 +49,48 @@ export const orcamentoService = {
       itens: payload.itens,
     });
   },
+  async criarVenda(payload) {
+    if (
+      !payload.clienteNome ||
+      !Array.isArray(payload.itens) ||
+      !payload.itens.length
+    ) {
+      throw httpError('clienteNome e itens são obrigatórios');
+    }
 
+    payload.itens.forEach((item) => {
+      if (!item.produto_id || !item.quantidade) {
+        throw httpError('Cada item precisa de produto_id e quantidade');
+      }
+
+      if (item.preco_unitario == null) {
+        throw httpError('Cada item precisa de preco_unitario');
+      }
+    });
+
+    // 1. cria orçamento já aprovado
+    const orcamento = await orcamentoRepository.create({
+      clienteNome: payload.clienteNome,
+      cliente_id: payload.cliente_id || null,
+      desconto_geral: payload.desconto_geral || 0,
+      itens: payload.itens,
+    });
+
+    await orcamentoRepository.updateStatus(orcamento.id, 'aprovado');
+
+    // 2. cria pedido a partir do orçamento aprovado
+    const pedido = await pedidoService.createFromOrcamento(orcamento.id);
+
+    return {
+      message: 'Venda lançada com sucesso',
+      orcamento_id: orcamento.id,
+      pedido_id: pedido.id,
+    };
+  },
+  async buscar(q) {
+    if (!q) return [];
+    return orcamentoRepository.buscar(q);
+  },
   async aprovarOrcamento(id) {
     const orcamento = await orcamentoRepository.getById(id);
 

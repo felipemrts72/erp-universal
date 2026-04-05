@@ -24,6 +24,48 @@ export const estoqueService = {
   async listarEstoqueAtual() {
     return estoqueRepository.listarResumoEstoque();
   },
+  async listarMovimentos() {
+    return estoqueRepository.listarMovimentos();
+  },
+
+  async buscarMovimentos(q) {
+    if (!q) return [];
+    return estoqueRepository.buscarMovimentos(q);
+  },
+  async listarMovimentosFiltrados({
+    startDate,
+    startTime,
+    endDate,
+    endTime,
+    page = 1,
+    limit = 10,
+  }) {
+    const now = new Date();
+
+    const start = startDate
+      ? new Date(`${startDate}T${startTime || '00:00'}:00`)
+      : new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+
+    const end = endDate ? new Date(`${endDate}T${endTime || '23:59'}:59`) : now;
+
+    const diffMs = end.getTime() - start.getTime();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+    if (diffDays < 0) {
+      throw httpError('Período inválido');
+    }
+
+    if (diffDays > 90) {
+      throw httpError('O período máximo permitido é de 90 dias');
+    }
+
+    return estoqueRepository.listarMovimentosFiltrados({
+      start,
+      end,
+      page: Number(page) || 1,
+      limit: Number(limit) || 10,
+    });
+  },
 
   async retiradaProducao({ ordem_producao_id, usuario_id }) {
     const ordem = await producaoRepository.getById(ordem_producao_id);
@@ -47,7 +89,7 @@ export const estoqueService = {
           `Estoque insuficiente para componente ${componente.componente_nome}`,
         );
       }
-      const movimento = await estoqueRepository.criarMovimentoEstoque({
+      const movimento = await estoqueRepository.criarMovimento({
         produtoId: componente.componente_id,
         quantidade: -necessario,
         tipoMovimento: 'saida',
@@ -95,7 +137,7 @@ export const estoqueService = {
       ? salvarAssinaturaBase64(payload.assinatura_url)
       : payload.assinatura_url;
 
-    const movimento = await estoqueRepository.criarMovimentoEstoque({
+    const movimento = await estoqueRepository.criarMovimento({
       produtoId: payload.produto_id,
       quantidade: -Number(payload.quantidade),
       tipoMovimento: 'saida',
@@ -172,7 +214,7 @@ export const estoqueService = {
       );
 
       // 5. movimento (AGORA DENTRO DA TRANSAÇÃO)
-      await estoqueRepository.criarMovimentoEstoque(
+      await estoqueRepository.criarMovimento(
         {
           produtoId,
           quantidade,

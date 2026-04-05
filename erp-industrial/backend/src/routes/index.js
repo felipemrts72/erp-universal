@@ -41,22 +41,13 @@ router.get('/produtos/busca', asyncHandler(produtoController.buscar));
 // ESTOQUE
 router.get('/estoque', asyncHandler(estoqueController.list));
 router.post('/estoque/entrada', asyncHandler(estoqueController.entrada));
-router.get('/estoque/busca', asyncHandler(estoqueController.buscar));
+router.get('/estoque/movimentos', asyncHandler(estoqueController.movimentos));
 router.get(
   '/estoque/movimentos/busca',
   asyncHandler(estoqueController.buscarMovimentos),
 );
+router.get('/estoque/busca', asyncHandler(estoqueController.buscar));
 router.post('/estoque/ajuste', asyncHandler(estoqueController.ajuste));
-/* router.post(
-  '/estoque/retirada-producao',
-  asyncHandler(estoqueController.retiradaProducao),
-);
-router.post(
-  '/estoque/insumo-extra',
-  asyncHandler(estoqueController.insumoExtra),
-); */
-
-// --
 
 // REQUISIÇÕES
 router.post(
@@ -96,6 +87,7 @@ router.patch(
   asyncHandler(orcamentoController.updateStatus),
 );
 router.get('/orcamentos/busca', asyncHandler(orcamentoController.buscar));
+router.post('/orcamentos/venda', asyncHandler(orcamentoController.venda));
 
 // PEDIDOS
 router.get('/pedidos', asyncHandler(pedidoController.list));

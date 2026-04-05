@@ -32,7 +32,7 @@ export const pedidoService = {
         if (saldo < Number(item.quantidade)) {
           throw httpError(`Estoque insuficiente para revenda: ${produto.nome}`);
         }
-        await estoqueRepository.criarMovimentoEstoque({
+        await estoqueRepository.criarMovimento({
           produtoId: item.produto_id,
           quantidade: -Number(item.quantidade),
           tipoMovimento: 'saida',
@@ -46,7 +46,7 @@ export const pedidoService = {
 
         if (saldo >= Number(item.quantidade)) {
           // ✅ já tem pronto → só baixa/separa
-          await estoqueRepository.criarMovimentoEstoque({
+          await estoqueRepository.criarMovimento({
             produtoId: item.produto_id,
             quantidade: -Number(item.quantidade),
             tipoMovimento: 'saida',
@@ -59,7 +59,7 @@ export const pedidoService = {
 
           // usa o que tem
           if (saldo > 0) {
-            await estoqueRepository.criarMovimentoEstoque({
+            await estoqueRepository.criarMovimento({
               produtoId: item.produto_id,
               quantidade: -saldo,
               tipoMovimento: 'saida',
