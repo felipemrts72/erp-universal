@@ -132,37 +132,33 @@ CREATE TABLE IF NOT EXISTS itens_orcamento (
   produto_id INTEGER NOT NULL REFERENCES produtos(id),
   quantidade NUMERIC(12,2) NOT NULL CHECK (quantidade > 0),
   preco_unitario NUMERIC(12,2) NOT NULL CHECK (preco_unitario >= 0),
-
-  -- desconto por item/unidade
   desconto_valor NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (desconto_valor >= 0),
-
-  -- desconto percentual da linha
   desconto_percentual NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (
     desconto_percentual >= 0 AND desconto_percentual <= 100
   ),
-
-  -- descrição customizada opcional
   nome_customizado VARCHAR(200)
 );
 
 -- =========================
--- PEDIDOS
+-- VENDAS
 -- =========================
-CREATE TABLE IF NOT EXISTS pedidos (
+CREATE TABLE IF NOT EXISTS vendas (
   id SERIAL PRIMARY KEY,
   orcamento_id INTEGER REFERENCES orcamentos(id),
   cliente_id INTEGER REFERENCES clientes(id) ON DELETE SET NULL,
   cliente_nome VARCHAR(120) NOT NULL,
-  status VARCHAR(30) DEFAULT 'aberto',
+  status VARCHAR(30) NOT NULL DEFAULT 'aberto' CHECK (
+    status IN ('aberto', 'parcial', 'finalizado', 'cancelado')
+  ),
   criado_em TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS itens_pedido (
+CREATE TABLE IF NOT EXISTS itens_vendas (
   id SERIAL PRIMARY KEY,
-  pedido_id INTEGER NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
+  venda_id INTEGER NOT NULL REFERENCES vendas(id) ON DELETE CASCADE,
   produto_id INTEGER NOT NULL REFERENCES produtos(id),
-  quantidade NUMERIC(12,2) NOT NULL,
-  preco_unitario NUMERIC(12,2) NOT NULL
+  quantidade NUMERIC(12,2) NOT NULL CHECK (quantidade > 0),
+  preco_unitario NUMERIC(12,2) NOT NULL CHECK (preco_unitario >= 0)
 );
 
 -- =========================
@@ -171,7 +167,7 @@ CREATE TABLE IF NOT EXISTS itens_pedido (
 CREATE TABLE IF NOT EXISTS ordens_producao (
   id SERIAL PRIMARY KEY,
   produto_id INTEGER NOT NULL REFERENCES produtos(id),
-  pedido_id INTEGER REFERENCES pedidos(id),
+  venda_id INTEGER REFERENCES vendas(id) ON DELETE SET NULL,
   quantidade NUMERIC(12,2) NOT NULL,
   status VARCHAR(30) NOT NULL CHECK (
     status IN ('pendente', 'em_producao', 'finalizado')
@@ -184,8 +180,8 @@ CREATE TABLE IF NOT EXISTS ordens_producao (
 -- =========================
 CREATE TABLE IF NOT EXISTS entregas (
   id SERIAL PRIMARY KEY,
-  ordem_producao_id INTEGER REFERENCES ordens_producao(id),
-  pedido_id INTEGER REFERENCES pedidos(id),
+  ordem_producao_id INTEGER REFERENCES ordens_producao(id) ON DELETE SET NULL,
+  venda_id INTEGER REFERENCES vendas(id) ON DELETE SET NULL,
   produto_id INTEGER NOT NULL REFERENCES produtos(id),
   quantidade NUMERIC(12,2) NOT NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'pendente'
@@ -211,6 +207,21 @@ CREATE TABLE IF NOT EXISTS relatorios_producao (
 );
 
 -- =========================
+-- RESERVAS_VENDA
+-- =========================
+
+CREATE TABLE IF NOT EXISTS reservas_venda (
+  id SERIAL PRIMARY KEY,
+  venda_id INTEGER NOT NULL REFERENCES vendas(id) ON DELETE CASCADE,
+  produto_id INTEGER NOT NULL REFERENCES produtos(id),
+  quantidade NUMERIC(12,2) NOT NULL CHECK (quantidade > 0),
+  origem_movimento_id INTEGER REFERENCES movimentos_estoque(id),
+  status VARCHAR(20) NOT NULL DEFAULT 'reservado'
+    CHECK (status IN ('reservado', 'atendido', 'cancelado')),
+  criado_em TIMESTAMP DEFAULT NOW()
+);
+
+-- =========================
 -- ÍNDICES
 -- =========================
 CREATE INDEX IF NOT EXISTS idx_clientes_nome
@@ -228,6 +239,18 @@ ON orcamentos(status);
 CREATE INDEX IF NOT EXISTS idx_itens_orcamento_orcamento
 ON itens_orcamento(orcamento_id);
 
+CREATE INDEX IF NOT EXISTS idx_vendas_orcamento_id
+ON vendas(orcamento_id);
+
+CREATE INDEX IF NOT EXISTS idx_vendas_cliente_id
+ON vendas(cliente_id);
+
+CREATE INDEX IF NOT EXISTS idx_vendas_status
+ON vendas(status);
+
+CREATE INDEX IF NOT EXISTS idx_itens_vendas_venda
+ON itens_vendas(venda_id);
+
 CREATE INDEX IF NOT EXISTS idx_movimentos_produto
 ON movimentos_estoque(produto_id);
 
@@ -243,5 +266,5 @@ ON consumos_consumiveis(criado_em);
 CREATE INDEX IF NOT EXISTS idx_entregas_status
 ON entregas(status);
 
-CREATE INDEX IF NOT EXISTS idx_entregas_pedido
-ON entregas(pedido_id);
+CREATE INDEX IF NOT EXISTS idx_entregas_venda
+ON entregas(venda_id);

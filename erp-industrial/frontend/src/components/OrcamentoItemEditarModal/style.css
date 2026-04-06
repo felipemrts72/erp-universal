@@ -1,0 +1,71 @@
+.orcamento-item-editar-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+
+.orcamento-item-editar-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 32, 56, 0.24);
+  backdrop-filter: blur(4px);
+}
+
+.orcamento-item-editar-modal__card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(640px, calc(100vw - 32px));
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.18);
+  padding: 24px;
+}
+
+.orcamento-item-editar-modal__title {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.orcamento-item-editar-modal__subtitle {
+  margin-bottom: 18px;
+  color: #51657f;
+}
+
+.orcamento-item-editar-modal__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.orcamento-item-editar-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.orcamento-item-editar-modal__field span {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.orcamento-item-editar-modal__field input {
+  min-height: 44px;
+  border: 1px solid #cfd9e6;
+  border-radius: 12px;
+  padding: 0 12px;
+  font-size: 15px;
+}
+
+.orcamento-item-editar-modal__field--full {
+  grid-column: 1 / -1;
+}
+
+.orcamento-item-editar-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 22px;
+}

@@ -11,6 +11,11 @@ export const orcamentoController = {
     res.json(result);
   },
 
+  async getById(req, res) {
+    const result = await orcamentoService.getById(Number(req.params.id));
+    res.json(result);
+  },
+
   async updateStatus(req, res) {
     const result = await orcamentoService.updateStatus(
       Number(req.params.id),
@@ -31,6 +36,19 @@ export const orcamentoController = {
 
   async venda(req, res) {
     const result = await orcamentoService.criarVenda(req.body);
+    res.status(201).json(result);
+  },
+
+  async update(req, res) {
+    const result = await orcamentoService.update(
+      Number(req.params.id),
+      req.body,
+    );
+    res.json(result);
+  },
+
+  async clonar(req, res) {
+    const result = await orcamentoService.clonar(Number(req.params.id));
     res.status(201).json(result);
   },
 };

@@ -3,7 +3,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { produtoController } from '../controllers/produtoController.js';
 import { estoqueController } from '../controllers/estoqueController.js';
 import { orcamentoController } from '../controllers/orcamentoController.js';
-import { pedidoController } from '../controllers/pedidoController.js';
+import { vendaController } from '../controllers/vendaController.js';
 import { producaoController } from '../controllers/producaoController.js';
 import { relatorioController } from '../controllers/relatorioController.js';
 import { dashboardController } from '../controllers/dashboardController.js';
@@ -13,6 +13,7 @@ import { funcionarioController } from '../controllers/funcionarioController.js';
 import { consumivelController } from '../controllers/consumivelController.js';
 import { entregaController } from '../controllers/entregaController.js';
 import { clienteController } from '../controllers/clienteController.js';
+import { reservaVendaController } from '../controllers/reservaVendaController.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 import { normalizeNumbers } from '../middleware/numbers.js';
@@ -81,17 +82,38 @@ router.get(
   '/orcamentos/templates',
   asyncHandler(orcamentoController.templates),
 );
+router.get('/orcamentos/busca', asyncHandler(orcamentoController.buscar));
+router.get('/orcamentos/:id', asyncHandler(orcamentoController.getById));
+
 router.post('/orcamentos', asyncHandler(orcamentoController.create));
+router.post('/orcamentos/venda', asyncHandler(orcamentoController.venda));
+router.post('/orcamentos/:id/clonar', asyncHandler(orcamentoController.clonar));
+
+router.patch('/orcamentos/:id', asyncHandler(orcamentoController.update));
 router.patch(
   '/orcamentos/:id/status',
   asyncHandler(orcamentoController.updateStatus),
 );
-router.get('/orcamentos/busca', asyncHandler(orcamentoController.buscar));
-router.post('/orcamentos/venda', asyncHandler(orcamentoController.venda));
 
-// PEDIDOS
-router.get('/pedidos', asyncHandler(pedidoController.list));
-router.post('/pedidos', asyncHandler(pedidoController.create));
+// VENDAS
+router.get('/vendas', asyncHandler(vendaController.list));
+router.post('/vendas', asyncHandler(vendaController.create));
+
+// opcional (se quiser manter fluxo via orçamento)
+router.post(
+  '/vendas/from-orcamento',
+  asyncHandler(vendaController.createFromOrcamento),
+);
+
+//RESERVAS DA VENDA
+router.get(
+  '/reservas-venda/pendentes-compra',
+  asyncHandler(reservaVendaController.listarPendentesCompra),
+);
+router.get(
+  '/reservas-venda/vincular-entrada',
+  asyncHandler(reservaVendaController.vincularEntrada),
+);
 
 // PRODUÇÕES
 router.get('/producao', asyncHandler(producaoController.list));

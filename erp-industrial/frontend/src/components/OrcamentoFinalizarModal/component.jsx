@@ -19,6 +19,7 @@ export default function OrcamentoFinalizarModal({
   onConfirm,
   itens = [],
   descontoGeralInicial = 0,
+  modo = { modoFormulario },
 }) {
   const [descontoGeralInput, setDescontoGeralInput] = useState(
     String(descontoGeralInicial || 0),

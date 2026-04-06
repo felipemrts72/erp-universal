@@ -10,7 +10,8 @@ import {
   gerarHtmlDocumento,
   imprimirDocumento,
 } from '../../utils/documentoPrint';
-
+import OrcamentoItemContextMenu from '../../components/OrcamentoItemContextMenu';
+import OrcamentoItemEditarModal from '../../components/OrcamentoItemEditarModal';
 import './style.css';
 
 const initialItem = {
@@ -58,6 +59,17 @@ export default function Orcamentos() {
 
   const [modalImpressaoOpen, setModalImpressaoOpen] = useState(false);
   const [documentoParaImprimir, setDocumentoParaImprimir] = useState(null);
+
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const [contextMenuX, setContextMenuX] = useState(0);
+  const [contextMenuY, setContextMenuY] = useState(0);
+  const [itemContexto, setItemContexto] = useState(null);
+
+  const [itemEditando, setItemEditando] = useState(null);
+  const [modalEditarItemOpen, setModalEditarItemOpen] = useState(false);
+
+  const [modoFormulario, setModoFormulario] = useState('novo');
+  const [orcamentoEditandoId, setOrcamentoEditandoId] = useState(null);
 
   const load = async () => {
     try {
@@ -221,6 +233,8 @@ export default function Orcamentos() {
     setItemForm(initialItem);
     setDescontoGeral(0);
     setBuscaId(null);
+    setModoFormulario('novo');
+    setOrcamentoEditandoId(null);
     setError('');
     setSuccess('');
   };
@@ -280,7 +294,12 @@ export default function Orcamentos() {
 
     try {
       setSaving(true);
-      await api.post('/orcamentos', payload);
+
+      if (modoFormulario === 'edicao' && orcamentoEditandoId) {
+        await api.patch(`/orcamentos/${orcamentoEditandoId}`, payload);
+      } else {
+        await api.post('/orcamentos', payload);
+      }
 
       setDocumentoParaImprimir({
         tipo: 'orcamento',
@@ -325,7 +344,13 @@ export default function Orcamentos() {
 
       setModalImpressaoOpen(true);
       setDescontoGeral(descontoModal);
-      setSuccess('Orçamento salvo com sucesso');
+      setSuccess(
+        modoFormulario === 'edicao'
+          ? 'Orçamento atualizado com sucesso'
+          : 'Orçamento salvo com sucesso',
+      );
+      setModoFormulario('novo');
+      setOrcamentoEditandoId(null);
       setModalOpen(false);
       limparFormulario();
       await load();
@@ -465,6 +490,110 @@ export default function Orcamentos() {
     ? orcamentos.filter((item) => String(item.id) === String(buscaId))
     : orcamentos;
 
+  const handleItemContextMenu = (event, row) => {
+    event.preventDefault();
+
+    setItemContexto(row);
+    setContextMenuX(event.clientX);
+    setContextMenuY(event.clientY);
+    setContextMenuOpen(true);
+  };
+
+  useEffect(() => {
+    const fecharMenu = () => setContextMenuOpen(false);
+
+    window.addEventListener('click', fecharMenu);
+    return () => window.removeEventListener('click', fecharMenu);
+  }, []);
+
+  const abrirModalEditarItem = () => {
+    if (!itemContexto) return;
+
+    const itemOriginal = itens[itemContexto.acoes];
+    if (!itemOriginal) return;
+
+    setItemEditando({
+      ...itemOriginal,
+      indice: itemContexto.acoes,
+    });
+
+    setModalEditarItemOpen(true);
+  };
+
+  const salvarEdicaoItem = (itemAtualizado) => {
+    setItens((prev) =>
+      prev.map((item, index) =>
+        index === itemEditando.indice
+          ? {
+              ...item,
+              quantidade: itemAtualizado.quantidade,
+              preco_unitario: itemAtualizado.preco_unitario,
+              desconto_valor: itemAtualizado.desconto_valor,
+              desconto_percentual: itemAtualizado.desconto_percentual,
+              nome_customizado: itemAtualizado.nome_customizado,
+            }
+          : item,
+      ),
+    );
+
+    setModalEditarItemOpen(false);
+    setItemEditando(null);
+  };
+
+  const removerItemPorContexto = () => {
+    if (!itemContexto) return;
+    removerItem(itemContexto.acoes);
+  };
+
+  const carregarOrcamentoNoFormulario = async (id, modo = 'edicao') => {
+    try {
+      setLoading(true);
+
+      const { data } = await api.get(`/orcamentos/${id}`);
+
+      setClienteNome(data.cliente_nome || '');
+      setClienteId(data.cliente_id || null);
+      setDescontoGeral(toNumber(data.desconto_geral || 0));
+
+      setItens(
+        (data.itens || []).map((item) => ({
+          produto_id: item.produto_id,
+          produto_nome: item.produto_nome || `Produto ${item.produto_id}`,
+          quantidade: toNumber(item.quantidade),
+          preco_unitario: toNumber(item.preco_unitario),
+          desconto_valor: toNumber(item.desconto_valor),
+          desconto_percentual: toNumber(item.desconto_percentual),
+          nome_customizado: item.nome_customizado || item.produto_nome || '',
+        })),
+      );
+
+      if (modo === 'edicao') {
+        setModoFormulario('edicao');
+        setOrcamentoEditandoId(data.id);
+        setSuccess(`Orçamento #${data.id} carregado para edição`);
+      } else {
+        setModoFormulario('clone');
+        setOrcamentoEditandoId(null);
+        setSuccess(`Orçamento #${data.id} carregado para clonagem`);
+      }
+
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+    } catch (err) {
+      console.error(err);
+      setError('Erro ao carregar orçamento');
+    } finally {
+      setLoading(false);
+    }
+  };
+  const editarOrcamento = async (id) => {
+    await carregarOrcamentoNoFormulario(id, 'edicao');
+  };
+  const clonarOrcamento = async (id) => {
+    await carregarOrcamentoNoFormulario(id, 'clone');
+  };
   return (
     <>
       {(loading || saving) && <LoadingModal />}
@@ -473,6 +602,17 @@ export default function Orcamentos() {
 
       <Card title="Pré-venda | Orçamento">
         <div className="orcamentos-page">
+          {modoFormulario === 'edicao' && (
+            <div className="orcamentos-page__modo orcamentos-page__modo--warning">
+              Editando orçamento #{orcamentoEditandoId}
+            </div>
+          )}
+
+          {modoFormulario === 'clone' && (
+            <div className="orcamentos-page__modo orcamentos-page__modo--info">
+              Clonando orçamento como novo
+            </div>
+          )}
           <div className="orcamentos-page__top">
             <div className="orcamentos-page__cliente">
               <label className="orcamentos-page__label">Nome do cliente</label>
@@ -617,21 +757,10 @@ export default function Orcamentos() {
                 { key: 'valor_unitario', label: 'Valor unidade' },
                 { key: 'desconto', label: 'Desconto' },
                 { key: 'total_liquido', label: 'Total líquido' },
-                {
-                  key: 'acoes',
-                  label: 'Ações',
-                  render: (_, row) => (
-                    <button
-                      className="btn btn--secondary"
-                      onClick={() => removerItem(row.acoes)}
-                    >
-                      Remover
-                    </button>
-                  ),
-                },
               ]}
               rows={rowsItens}
               emptyText="Nenhum item adicionado ao orçamento."
+              onRowContextMenu={handleItemContextMenu}
             />
           </div>
 
@@ -650,7 +779,9 @@ export default function Orcamentos() {
               disabled={saving}
               type="button"
             >
-              Salvar orçamento
+              {modoFormulario === 'edicao'
+                ? 'Finalizar edição'
+                : 'Salvar orçamento'}
             </button>
 
             <button
@@ -678,38 +809,55 @@ export default function Orcamentos() {
               key: 'acoes',
               label: 'Ações',
               render: (_, row) => {
-                if (row.status === 'aprovado') {
-                  return (
-                    <span className="orcamentos-page__status-text orcamentos-page__status-text--success">
-                      Orçamento aprovado
-                    </span>
-                  );
-                }
-
-                if (row.status === 'rejeitado') {
-                  return (
-                    <span className="orcamentos-page__status-text orcamentos-page__status-text--danger">
-                      Orçamento rejeitado
-                    </span>
-                  );
-                }
+                const podeEditar =
+                  row.status === 'rascunho' || row.status === 'enviado';
 
                 return (
                   <div className="page-actions">
-                    <button
-                      className="btn btn--primary"
-                      onClick={() => decide(row.id, 'aprovado')}
-                      disabled={loading}
-                    >
-                      Aprovar
-                    </button>
+                    {podeEditar && (
+                      <button
+                        className="btn btn--secondary"
+                        onClick={() => editarOrcamento(row.id)}
+                        disabled={loading}
+                      >
+                        Editar
+                      </button>
+                    )}
+
                     <button
                       className="btn btn--secondary"
-                      onClick={() => decide(row.id, 'rejeitado')}
+                      onClick={() => clonarOrcamento(row.id)}
                       disabled={loading}
                     >
-                      Rejeitar
+                      Clonar
                     </button>
+
+                    {row.status === 'aprovado' ? (
+                      <span className="orcamentos-page__status-text orcamentos-page__status-text--success">
+                        Orçamento aprovado
+                      </span>
+                    ) : row.status === 'rejeitado' ? (
+                      <span className="orcamentos-page__status-text orcamentos-page__status-text--danger">
+                        Orçamento rejeitado
+                      </span>
+                    ) : (
+                      <>
+                        <button
+                          className="btn btn--primary"
+                          onClick={() => decide(row.id, 'aprovado')}
+                          disabled={loading}
+                        >
+                          Aprovar
+                        </button>
+                        <button
+                          className="btn btn--secondary"
+                          onClick={() => decide(row.id, 'rejeitado')}
+                          disabled={loading}
+                        >
+                          Rejeitar
+                        </button>
+                      </>
+                    )}
                   </div>
                 );
               },
@@ -827,11 +975,11 @@ export default function Orcamentos() {
                     empresa: {
                       nome: 'Torneadora Universal',
                       logoUrl: '/logo.png',
-                      endereco: 'Seu endereço aqui',
-                      cidade: 'Sua cidade',
+                      endereco: 'R THIAGO MAGALHÃES NUNES, 1369, CENTRO',
+                      cidade: 'PEIXOTO DE AZEVEDO',
                       estado: 'MT',
-                      telefone: '(66) 99999-9999',
-                      email: 'contato@empresa.com',
+                      telefone: '(66) 999751055',
+                      email: 'gerente.torneadorauniversal@gmail.com',
                     },
                     cliente: documentoParaImprimir.cliente,
                     itens: documentoParaImprimir.itens,
@@ -856,6 +1004,25 @@ export default function Orcamentos() {
         onConfirm={confirmarSalvarOrcamento}
         itens={itens}
         descontoGeralInicial={descontoGeral}
+        modo={modoFormulario}
+      />
+      <OrcamentoItemContextMenu
+        open={contextMenuOpen}
+        x={contextMenuX}
+        y={contextMenuY}
+        onClose={() => setContextMenuOpen(false)}
+        onEdit={abrirModalEditarItem}
+        onRemove={removerItemPorContexto}
+      />
+
+      <OrcamentoItemEditarModal
+        open={modalEditarItemOpen}
+        item={itemEditando}
+        onClose={() => {
+          setModalEditarItemOpen(false);
+          setItemEditando(null);
+        }}
+        onSave={salvarEdicaoItem}
       />
     </>
   );

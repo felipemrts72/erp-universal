@@ -1,6 +1,17 @@
+import { useEffect } from 'react';
 import './style.css';
 
 export default function Toast({ open, message, type = 'error', onClose }) {
+  useEffect(() => {
+    if (!open) return;
+
+    const timer = setTimeout(() => {
+      onClose?.();
+    }, 3500);
+
+    return () => clearTimeout(timer);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (

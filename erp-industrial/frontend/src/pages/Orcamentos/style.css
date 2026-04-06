@@ -211,6 +211,22 @@
   gap: 12px;
   margin-top: 24px;
 }
+.orcamentos-page__modo {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.orcamentos-page__modo--warning {
+  background: #fff4d6;
+  color: #7a5600;
+}
+
+.orcamentos-page__modo--info {
+  background: #e8f1ff;
+  color: #1f4f9c;
+}
 
 @media (max-width: 1100px) {
   .orcamentos-page__top {

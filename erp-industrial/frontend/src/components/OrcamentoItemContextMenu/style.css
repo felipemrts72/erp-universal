@@ -1,0 +1,29 @@
+.orcamento-item-context-menu {
+  position: fixed;
+  z-index: 9999;
+  min-width: 180px;
+  background: #ffffff;
+  border: 1px solid #dbe4f0;
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16);
+  padding: 6px;
+}
+
+.orcamento-item-context-menu__button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.orcamento-item-context-menu__button:hover {
+  background: #f3f7fc;
+}
+
+.orcamento-item-context-menu__button--danger {
+  color: #c5221f;
+}

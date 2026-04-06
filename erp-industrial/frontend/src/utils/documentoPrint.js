@@ -258,7 +258,7 @@ export function gerarHtmlDocumento({
               }
               ${
                 mostrarAssinaturaProprietario
-                  ? '<div class="assinatura__linha">Assinatura do proprietário</div>'
+                  ? '<div class="assinatura__linha">Senival Martins de Menezes</div>'
                   : '<div class="assinatura__linha">&nbsp;</div>'
               }
             </div>

@@ -149,12 +149,10 @@ export const estoqueRepository = {
     } = data;
 
     const { rows } = await client.query(
-      `
-      INSERT INTO movimentos_estoque
-      (produto_id, quantidade, tipo_movimento, referencia_tipo, referencia_id)
-      VALUES ($1,$2,$3,$4,$5)
-      RETURNING *
-      `,
+      `INSERT INTO movimentos_estoque
+     (produto_id, quantidade, tipo_movimento, referencia_tipo, referencia_id)
+     VALUES ($1,$2,$3,$4,$5)
+     RETURNING *`,
       [produtoId, quantidade, tipoMovimento, referenciaTipo, referenciaId],
     );
 

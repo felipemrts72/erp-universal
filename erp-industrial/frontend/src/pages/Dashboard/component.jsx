@@ -15,7 +15,7 @@ export default function Dashboard() {
       const [r1, r2, r3] = await Promise.allSettled([
         api.get('/dashboard/resumo'),
         api.get('/dashboard/alertas'),
-        api.get('/entregas/pendentes')
+        api.get('/entregas/pendentes'),
       ]);
       if (r1.status === 'fulfilled') setResumo(r1.value.data || []);
       if (r2.status === 'fulfilled') setAlertas(r2.value.data || []);
@@ -26,25 +26,45 @@ export default function Dashboard() {
 
   return (
     <>
-      <section className='dashboard__cards'>
-        {(resumo.length ? resumo : [{ label: 'Produção Hoje', valor: '--' }, { label: 'Pedidos Abertos', valor: '--' }, { label: 'Baixo Estoque', valor: '--' }]).map((item) => (
-          <Card key={item.label} title={item.label}><strong className='dashboard__metric'>{item.valor}</strong></Card>
+      <section className="dashboard__cards">
+        {(resumo.length
+          ? resumo
+          : [
+              { label: 'Produção Hoje', valor: '--' },
+              { label: 'Vendas Abertas', valor: '--' },
+              { label: 'Baixo Estoque', valor: '--' },
+            ]
+        ).map((item) => (
+          <Card key={item.label} title={item.label}>
+            <strong className="dashboard__metric">{item.valor}</strong>
+          </Card>
         ))}
       </section>
 
-      <Card title='Alertas operacionais'>
-        <ul className='dashboard__alerts'>
-          {(alertas.length ? alertas : ['Sem alertas críticos no momento.']).map((alerta, idx) => <li key={idx}>{alerta.mensagem || alerta}</li>)}
+      <Card title="Alertas operacionais">
+        <ul className="dashboard__alerts">
+          {(alertas.length
+            ? alertas
+            : ['Sem alertas críticos no momento.']
+          ).map((alerta, idx) => (
+            <li key={idx}>{alerta.mensagem || alerta}</li>
+          ))}
         </ul>
       </Card>
 
-      <Card title='Entregas pendentes'>
+      <Card title="Entregas pendentes">
         <DataTable
           columns={[
             { key: 'id', label: 'ID' },
             { key: 'cliente', label: 'Cliente' },
             { key: 'previsao', label: 'Previsão' },
-            { key: 'status', label: 'Status', render: (_, row) => <StatusBadge status={row.status || 'Pendente'} /> }
+            {
+              key: 'status',
+              label: 'Status',
+              render: (_, row) => (
+                <StatusBadge status={row.status || 'Pendente'} />
+              ),
+            },
           ]}
           rows={entregas}
         />

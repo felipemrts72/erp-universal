@@ -1,6 +1,6 @@
 import { orcamentoRepository } from '../repositories/orcamentoRepository.js';
 import { httpError } from '../utils/httpError.js';
-import { pedidoService } from './pedidoService.js';
+import { vendaService } from './vendaService.js';
 
 const templates = [
   {
@@ -78,18 +78,58 @@ export const orcamentoService = {
 
     await orcamentoRepository.updateStatus(orcamento.id, 'aprovado');
 
-    // 2. cria pedido a partir do orçamento aprovado
-    const pedido = await pedidoService.createFromOrcamento(orcamento.id);
+    // 2. cria venda a partir do orçamento aprovado
+    const venda = await vendaService.createFromOrcamento(orcamento.id);
 
     return {
       message: 'Venda lançada com sucesso',
       orcamento_id: orcamento.id,
-      pedido_id: pedido.id,
+      venda_id: venda.id,
     };
   },
   async buscar(q) {
     if (!q) return [];
     return orcamentoRepository.buscar(q);
+  },
+  async update(id, payload) {
+    const orcamento = await orcamentoRepository.getWithItens(id);
+
+    if (!orcamento) throw httpError('Orçamento não encontrado', 404);
+
+    if (!['rascunho', 'enviado'].includes(orcamento.status)) {
+      throw httpError(
+        'Somente orçamentos em rascunho ou enviado podem ser editados',
+      );
+    }
+
+    if (
+      !payload.clienteNome ||
+      !Array.isArray(payload.itens) ||
+      !payload.itens.length
+    ) {
+      throw httpError('clienteNome e itens são obrigatórios');
+    }
+
+    return orcamentoRepository.updateCompleto(id, payload);
+  },
+  async clonar(id) {
+    const original = await orcamentoRepository.getWithItens(id);
+
+    if (!original) throw httpError('Orçamento não encontrado', 404);
+
+    return orcamentoRepository.create({
+      clienteNome: original.cliente_nome,
+      cliente_id: original.cliente_id || null,
+      desconto_geral: original.desconto_geral || 0,
+      itens: original.itens.map((item) => ({
+        produto_id: item.produto_id,
+        quantidade: item.quantidade,
+        preco_unitario: item.preco_unitario,
+        desconto_valor: item.desconto_valor || 0,
+        desconto_percentual: item.desconto_percentual || 0,
+        nome_customizado: item.nome_customizado || undefined,
+      })),
+    });
   },
   async aprovarOrcamento(id) {
     const orcamento = await orcamentoRepository.getById(id);
@@ -126,5 +166,14 @@ export const orcamentoService = {
 
   async templates() {
     return templates;
+  },
+  async getById(id) {
+    const orcamento = await orcamentoRepository.getWithItens(id);
+
+    if (!orcamento) {
+      throw httpError('Orçamento não encontrado', 404);
+    }
+
+    return orcamento;
   },
 };
