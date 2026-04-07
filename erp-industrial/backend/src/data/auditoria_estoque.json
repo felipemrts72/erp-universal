@@ -288,5 +288,15 @@
     "custo_unitario": 190,
     "fornecedor": "ROLMASTER",
     "usuario_id": 1
+  },
+  {
+    "id": 30,
+    "criado_em": "2026-04-07T03:58:30.504Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 2,
+    "quantidade": 10,
+    "custo_unitario": 900,
+    "fornecedor": "TORNEADORA UNIVESAL",
+    "usuario_id": 1
   }
 ]

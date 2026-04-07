@@ -14,7 +14,7 @@ import { consumivelController } from '../controllers/consumivelController.js';
 import { entregaController } from '../controllers/entregaController.js';
 import { clienteController } from '../controllers/clienteController.js';
 import { reservaVendaController } from '../controllers/reservaVendaController.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authMiddleware, isAdmin } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 import { normalizeNumbers } from '../middleware/numbers.js';
 
@@ -110,7 +110,7 @@ router.get(
   '/reservas-venda/pendentes-compra',
   asyncHandler(reservaVendaController.listarPendentesCompra),
 );
-router.get(
+router.post(
   '/reservas-venda/vincular-entrada',
   asyncHandler(reservaVendaController.vincularEntrada),
 );
@@ -135,6 +135,11 @@ router.post(
 // DASHBOARD
 router.get('/dashboard/resumo', asyncHandler(dashboardController.resumo));
 router.get('/dashboard/alertas', asyncHandler(dashboardController.alertas));
+router.get(
+  '/dashboard/financeiro',
+  isAdmin,
+  asyncHandler(dashboardController.financeiro),
+);
 
 // FUNCIONÁRIOS
 router.post('/funcionarios', asyncHandler(funcionarioController.create));

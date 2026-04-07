@@ -1,6 +1,7 @@
 import { orcamentoRepository } from '../repositories/orcamentoRepository.js';
 import { httpError } from '../utils/httpError.js';
 import { vendaService } from './vendaService.js';
+import { vendaRepository } from '../repositories/vendaRepository.js';
 
 const templates = [
   {
@@ -131,7 +132,7 @@ export const orcamentoService = {
       })),
     });
   },
-  async aprovarOrcamento(id) {
+  /* async aprovarOrcamento(id) {
     const orcamento = await orcamentoRepository.getById(id);
 
     if (!orcamento) throw new Error('Orçamento não encontrado');
@@ -154,14 +155,30 @@ export const orcamentoService = {
     }
 
     return { message: 'Orçamento aprovado com sucesso' };
-  },
+  }, */
 
   async list() {
     return orcamentoRepository.list();
   },
 
   async updateStatus(id, status) {
-    return orcamentoRepository.updateStatus(id, status);
+    const orcamento = await orcamentoRepository.getWithItens(id);
+
+    if (!orcamento) {
+      throw httpError('Orçamento não encontrado', 404);
+    }
+
+    const atualizado = await orcamentoRepository.updateStatus(id, status);
+
+    if (status === 'aprovado') {
+      const vendaExistente = await vendaRepository.getByOrcamentoId(id);
+
+      if (!vendaExistente) {
+        await vendaService.createFromOrcamento(id);
+      }
+    }
+
+    return atualizado;
   },
 
   async templates() {

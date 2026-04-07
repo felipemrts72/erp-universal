@@ -21,3 +21,10 @@ export function authMiddleware(req, res, next) {
     return res.status(401).json({ message: 'Token inválido' });
   }
 }
+
+export function isAdmin(req, res, next) {
+  if (req.user?.role !== 'admin') {
+    return res.status(403).json({ message: 'Acesso restrito' });
+  }
+  next();
+}

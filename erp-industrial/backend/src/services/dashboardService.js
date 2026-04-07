@@ -54,4 +54,71 @@ export const dashboardService = {
       alertas,
     };
   },
+  async getFinanceiro() {
+    const [
+      vendasHoje,
+      valorHoje,
+      valorMes,
+      qtdMes,
+      entrada30Dias,
+      topComprados,
+    ] = await Promise.all([
+      pool.query(`
+        SELECT COUNT(*)::int AS total
+        FROM vendas
+        WHERE DATE(criado_em) = CURRENT_DATE
+      `),
+
+      pool.query(`
+        SELECT COALESCE(SUM(iv.quantidade * iv.preco_unitario), 0) AS total
+        FROM vendas v
+        JOIN itens_vendas iv ON iv.venda_id = v.id
+        WHERE DATE(v.criado_em) = CURRENT_DATE
+      `),
+
+      pool.query(`
+        SELECT COALESCE(SUM(iv.quantidade * iv.preco_unitario), 0) AS total
+        FROM vendas v
+        JOIN itens_vendas iv ON iv.venda_id = v.id
+        WHERE date_trunc('month', v.criado_em) = date_trunc('month', CURRENT_DATE)
+      `),
+
+      pool.query(`
+        SELECT COUNT(*)::int AS total
+        FROM vendas
+        WHERE date_trunc('month', criado_em) = date_trunc('month', CURRENT_DATE)
+      `),
+
+      pool.query(`
+        SELECT COALESCE(SUM(m.quantidade * COALESCE(p.ultimo_preco_compra, p.custo, 0)), 0) AS total
+        FROM movimentos_estoque m
+        JOIN produtos p ON p.id = m.produto_id
+        WHERE m.tipo_movimento = 'entrada'
+          AND m.criado_em >= NOW() - INTERVAL '30 days'
+      `),
+
+      pool.query(`
+        SELECT
+          p.nome AS produto,
+          COALESCE(SUM(m.quantidade), 0) AS quantidade,
+          COALESCE(SUM(m.quantidade * COALESCE(p.ultimo_preco_compra, p.custo, 0)), 0) AS valor_total
+        FROM movimentos_estoque m
+        JOIN produtos p ON p.id = m.produto_id
+        WHERE m.tipo_movimento = 'entrada'
+          AND m.criado_em >= NOW() - INTERVAL '30 days'
+        GROUP BY p.id, p.nome
+        ORDER BY valor_total DESC, quantidade DESC
+        LIMIT 5
+      `),
+    ]);
+
+    return {
+      quantidadeVendasHoje: vendasHoje.rows[0]?.total || 0,
+      valorVendasHoje: Number(valorHoje.rows[0]?.total || 0),
+      valorVendasMes: Number(valorMes.rows[0]?.total || 0),
+      quantidadeVendasMes: qtdMes.rows[0]?.total || 0,
+      entradaEstoque30Dias: Number(entrada30Dias.rows[0]?.total || 0),
+      topItensComprados: topComprados.rows || [],
+    };
+  },
 };

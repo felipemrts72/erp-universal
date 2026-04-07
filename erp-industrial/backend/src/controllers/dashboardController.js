@@ -6,8 +6,14 @@ export const dashboardController = {
     const result = await dashboardService.getResumo();
     res.json(result);
   },
+
   async alertas(req, res) {
     const result = await alertaService.listarAlertas();
     res.json(result);
-  }
+  },
+
+  async financeiro(req, res) {
+    const result = await dashboardService.getFinanceiro();
+    res.json(result);
+  },
 };

@@ -132,4 +132,17 @@ export const vendaRepository = {
 
     return rows;
   },
+  async getByOrcamentoId(orcamentoId) {
+    const { rows } = await pool.query(
+      `
+    SELECT *
+    FROM vendas
+    WHERE orcamento_id = $1
+    LIMIT 1
+    `,
+      [orcamentoId],
+    );
+
+    return rows[0] || null;
+  },
 };
