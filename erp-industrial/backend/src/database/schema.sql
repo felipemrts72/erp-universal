@@ -1,4 +1,16 @@
 -- =========================
+-- CRIAR BANCO DE DADOS (DB)
+-- =========================
+
+CREATE DATABASE erp_industrial;
+
+-- =========================
+-- ENTRA NO BANCO
+-- =========================
+
+\c erp_industrial
+
+-- =========================
 -- FUNCIONÁRIOS
 -- =========================
 CREATE TABLE IF NOT EXISTS funcionarios (

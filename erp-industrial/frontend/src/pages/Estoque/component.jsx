@@ -97,22 +97,22 @@ export default function Estoque() {
 
   const registrarEntrada = async () => {
     if (!produtoSelecionado?.id) {
-      showToast('Selecione um produto.');
+      showToast('Selecione um produto.', 'error');
       return;
     }
 
     if (!quantidade || Number(quantidade) <= 0) {
-      showToast('Informe uma quantidade válida.');
+      showToast('Informe uma quantidade válida.', 'error');
       return;
     }
 
     if (!custoUnitario || Number(custoUnitario) <= 0) {
-      showToast('Informe um custo unitário válido.');
+      showToast('Informe um custo unitário válido.', 'error');
       return;
     }
 
     if (!fornecedor.trim()) {
-      showToast('Informe o fornecedor.');
+      showToast('Informe o fornecedor.', 'error');
       return;
     }
 
@@ -131,33 +131,31 @@ export default function Estoque() {
       setProdutoSelecionado(null);
 
       await load();
-      alert('Entrada registrada com sucesso.');
+      showToast('Entrada registrada com sucesso.', 'success');
     } catch (error) {
       console.error(error);
       showToast(
         error?.response?.data?.message ||
           'Erro ao registrar entrada de estoque.',
+        'error',
       );
     }
   };
 
   return (
     <>
-      <>
-        <Toast
-          open={toastOpen}
-          message={toastMessage}
-          type={toastType}
-          onClose={() => setToastOpen(false)}
-        />
-        ...
-      </>
-      <Card title="Entrada de estoque">
-        <div className="form-grid">
+      <Toast
+        open={toastOpen}
+        message={toastMessage}
+        type={toastType}
+        onClose={() => setToastOpen(false)}
+      />
+      <Card title='Entrada de estoque'>
+        <div className='form-grid'>
           <BuscaManual
-            endpoint="/produtos/busca"
-            label="Produto"
-            placeholder="Buscar produto"
+            endpoint='/produtos/busca'
+            label='Produto'
+            placeholder='Buscar produto'
             onSelect={(id, produto) =>
               setProdutoSelecionado({
                 id,
@@ -166,34 +164,34 @@ export default function Estoque() {
             }
           />
 
-          <label className="form-control">
+          <label className='form-control'>
             Quantidade
             <input
-              type="number"
-              min="1"
+              type='number'
+              min='1'
               value={quantidade}
               onChange={(e) => setQuantidade(e.target.value)}
             />
           </label>
 
-          <label className="form-control">
+          <label className='form-control'>
             Custo unitário
             <input
-              type="number"
-              min="0"
-              step="0.01"
+              type='number'
+              min='0'
+              step='0.01'
               value={custoUnitario}
               onChange={(e) => setCustoUnitario(e.target.value)}
             />
           </label>
 
-          <label className="form-control">
+          <label className='form-control'>
             Fornecedor
             <input
-              type="text"
+              type='text'
               value={fornecedor}
               onChange={(e) => setFornecedor(e.target.value)}
-              placeholder="Ex.: TOR UNIVERSAL"
+              placeholder='Ex.: TOR UNIVERSAL'
             />
           </label>
         </div>
@@ -204,14 +202,13 @@ export default function Estoque() {
           </div>
         )}
 
-        <div className="page-actions">
-          <button className="btn btn--primary" onClick={registrarEntrada}>
+        <div className='page-actions'>
+          <button className='btn btn--primary' onClick={registrarEntrada}>
             Registrar entrada
           </button>
         </div>
       </Card>
-
-      <Card title="Posição atual">
+      <Card title='Posição atual'>
         <DataTable
           columns={[
             { key: 'produto', label: 'Produto' },
@@ -221,57 +218,55 @@ export default function Estoque() {
           rows={items}
         />
       </Card>
-
-      <Card title="Filtro de movimentos">
-        <div className="form-grid">
-          <label className="form-control">
+      <Card title='Filtro de movimentos'>
+        <div className='form-grid'>
+          <label className='form-control'>
             Data inicial
             <input
-              type="date"
+              type='date'
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
             />
           </label>
 
-          <label className="form-control">
+          <label className='form-control'>
             Hora inicial
             <input
-              type="time"
+              type='time'
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
             />
           </label>
 
-          <label className="form-control">
+          <label className='form-control'>
             Data final
             <input
-              type="date"
+              type='date'
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
             />
           </label>
 
-          <label className="form-control">
+          <label className='form-control'>
             Hora final
             <input
-              type="time"
+              type='time'
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
             />
           </label>
         </div>
 
-        <div className="page-actions">
+        <div className='page-actions'>
           <button
-            className="btn btn--primary"
+            className='btn btn--primary'
             onClick={() => loadMovimentos(1)}
           >
             Filtrar
           </button>
         </div>
       </Card>
-
-      <Card title="Movimentos">
+      <Card title='Movimentos'>
         <DataTable
           columns={[
             {
@@ -293,12 +288,12 @@ export default function Estoque() {
             { key: 'referencia_tipo', label: 'Referência' },
           ]}
           rows={movimentos}
-          emptyText="Nenhum movimento encontrado para esse período."
+          emptyText='Nenhum movimento encontrado para esse período.'
         />
 
-        <div className="page-actions" style={{ marginTop: 12 }}>
+        <div className='page-actions' style={{ marginTop: 12 }}>
           <button
-            className="btn btn--secondary"
+            className='btn btn--secondary'
             disabled={page <= 1}
             onClick={() => loadMovimentos(page - 1)}
           >
@@ -310,7 +305,7 @@ export default function Estoque() {
           </span>
 
           <button
-            className="btn btn--secondary"
+            className='btn btn--secondary'
             disabled={page >= totalPages}
             onClick={() => loadMovimentos(page + 1)}
           >
@@ -318,27 +313,6 @@ export default function Estoque() {
           </button>
         </div>
       </Card>
-      <div className="page-actions" style={{ marginTop: 12 }}>
-        <button
-          className="btn btn--secondary"
-          disabled={page <= 1}
-          onClick={() => loadMovimentos(page - 1)}
-        >
-          Anterior
-        </button>
-
-        <span>
-          Página {page} de {totalPages}
-        </span>
-
-        <button
-          className="btn btn--secondary"
-          disabled={page >= totalPages}
-          onClick={() => loadMovimentos(page + 1)}
-        >
-          Próxima
-        </button>
-      </div>
     </>
   );
 }

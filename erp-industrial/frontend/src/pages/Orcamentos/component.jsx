@@ -597,30 +597,30 @@ export default function Orcamentos() {
   return (
     <>
       {(loading || saving) && <LoadingModal />}
-      {error && <p className="error">{error}</p>}
-      {success && <p className="success">{success}</p>}
+      {error && <p className='error'>{error}</p>}
+      {success && <p className='success'>{success}</p>}
 
-      <Card title="Pré-venda | Orçamento">
-        <div className="orcamentos-page">
+      <Card title='Pré-venda | Orçamento'>
+        <div className='orcamentos-page'>
           {modoFormulario === 'edicao' && (
-            <div className="orcamentos-page__modo orcamentos-page__modo--warning">
+            <div className='orcamentos-page__modo orcamentos-page__modo--warning'>
               Editando orçamento #{orcamentoEditandoId}
             </div>
           )}
 
           {modoFormulario === 'clone' && (
-            <div className="orcamentos-page__modo orcamentos-page__modo--info">
+            <div className='orcamentos-page__modo orcamentos-page__modo--info'>
               Clonando orçamento como novo
             </div>
           )}
-          <div className="orcamentos-page__top">
-            <div className="orcamentos-page__cliente">
-              <label className="orcamentos-page__label">Nome do cliente</label>
-              <div className="orcamentos-page__cliente">
+          <div className='orcamentos-page__top'>
+            <div className='orcamentos-page__cliente'>
+              <label className='orcamentos-page__label'>Nome do cliente</label>
+              <div className='orcamentos-page__cliente'>
                 <BuscaManual
-                  endpoint="/clientes/busca"
-                  label="Nome do cliente"
-                  placeholder="Digite 3 letras, Enter ou clique na lupa"
+                  endpoint='/clientes/busca'
+                  label='Nome do cliente'
+                  placeholder='Digite 3 letras, Enter ou clique na lupa'
                   onSelect={handleClienteSelect}
                   value={clienteNome}
                   onChangeValue={(value) => {
@@ -631,124 +631,124 @@ export default function Orcamentos() {
               </div>
             </div>
 
-            <div className="orcamentos-page__totais">
-              <div className="orcamentos-page__total-card">
-                <span className="orcamentos-page__total-label">
+            <div className='orcamentos-page__totais'>
+              <div className='orcamentos-page__total-card'>
+                <span className='orcamentos-page__total-label'>
                   Total bruto
                 </span>
-                <strong className="orcamentos-page__total-value">
+                <strong className='orcamentos-page__total-value'>
                   {formatMoney(totais.bruto)}
                 </strong>
               </div>
 
-              <div className="orcamentos-page__total-card">
-                <span className="orcamentos-page__total-label">Desconto</span>
-                <strong className="orcamentos-page__total-value">
+              <div className='orcamentos-page__total-card'>
+                <span className='orcamentos-page__total-label'>Desconto</span>
+                <strong className='orcamentos-page__total-value'>
                   {formatMoney(totais.descontoItens + toNumber(descontoGeral))}
                 </strong>
               </div>
 
-              <div className="orcamentos-page__total-card">
-                <span className="orcamentos-page__total-label">Itens</span>
-                <strong className="orcamentos-page__total-value">
+              <div className='orcamentos-page__total-card'>
+                <span className='orcamentos-page__total-label'>Itens</span>
+                <strong className='orcamentos-page__total-value'>
                   {totais.itens}
                 </strong>
               </div>
 
-              <div className="orcamentos-page__total-card">
-                <span className="orcamentos-page__total-label">
+              <div className='orcamentos-page__total-card'>
+                <span className='orcamentos-page__total-label'>
                   Total líquido
                 </span>
-                <strong className="orcamentos-page__total-value">
+                <strong className='orcamentos-page__total-value'>
                   {formatMoney(totais.liquido)}
                 </strong>
               </div>
             </div>
           </div>
 
-          <div className="orcamentos-page__item-form">
-            <div className="orcamentos-page__field orcamentos-page__field--produto">
+          <div className='orcamentos-page__item-form'>
+            <div className='orcamentos-page__field orcamentos-page__field--produto'>
               <BuscaManual
-                endpoint="/produtos/busca"
-                label="Produto"
-                placeholder="Digite 3 letras e pressione Enter ou clique na lupa"
+                endpoint='/produtos/busca'
+                label='Produto'
+                placeholder='Digite 3 letras e pressione Enter ou clique na lupa'
                 filterOptions={(item) => item.tipo !== 'consumivel'}
                 onSelect={handleProdutoSelect}
               />
             </div>
 
-            <div className="orcamentos-page__field">
-              <label className="orcamentos-page__label">Quantidade</label>
+            <div className='orcamentos-page__field'>
+              <label className='orcamentos-page__label'>Quantidade</label>
               <input
-                className="orcamentos-page__input"
+                className='orcamentos-page__input'
                 value={itemForm.quantidade}
                 onChange={(e) => handleItemChange('quantidade', e.target.value)}
-                placeholder="1"
+                placeholder='1'
               />
             </div>
 
-            <div className="orcamentos-page__field">
-              <label className="orcamentos-page__label">Preço</label>
+            <div className='orcamentos-page__field'>
+              <label className='orcamentos-page__label'>Preço</label>
               <input
-                className="orcamentos-page__input"
+                className='orcamentos-page__input'
                 value={itemForm.preco_unitario}
                 onChange={(e) =>
                   handleItemChange('preco_unitario', e.target.value)
                 }
-                placeholder="0,00"
+                placeholder='0,00'
               />
             </div>
 
-            <div className="orcamentos-page__field">
-              <label className="orcamentos-page__label">Desc. valor</label>
+            <div className='orcamentos-page__field'>
+              <label className='orcamentos-page__label'>Desc. valor</label>
               <input
-                className="orcamentos-page__input"
+                className='orcamentos-page__input'
                 value={itemForm.desconto_valor}
                 onChange={(e) =>
                   handleItemChange('desconto_valor', e.target.value)
                 }
-                placeholder="0,00"
+                placeholder='0,00'
               />
             </div>
 
-            <div className="orcamentos-page__field">
-              <label className="orcamentos-page__label">Desc. %</label>
+            <div className='orcamentos-page__field'>
+              <label className='orcamentos-page__label'>Desc. %</label>
               <input
-                className="orcamentos-page__input"
+                className='orcamentos-page__input'
                 value={itemForm.desconto_percentual}
                 onChange={(e) =>
                   handleItemChange('desconto_percentual', e.target.value)
                 }
-                placeholder="0"
+                placeholder='0'
               />
             </div>
 
-            <div className="orcamentos-page__field orcamentos-page__field--descricao">
-              <label className="orcamentos-page__label">
+            <div className='orcamentos-page__field orcamentos-page__field--descricao'>
+              <label className='orcamentos-page__label'>
                 Descrição do item
               </label>
               <input
-                className="orcamentos-page__input"
+                className='orcamentos-page__input'
                 value={itemForm.nome_customizado}
                 onChange={(e) =>
                   handleItemChange('nome_customizado', e.target.value)
                 }
-                placeholder="Descrição personalizada do item"
+                placeholder='Descrição personalizada do item'
               />
             </div>
 
-            <div className="orcamentos-page__field orcamentos-page__field--button">
+            <div className='orcamentos-page__field orcamentos-page__field--button'>
               <button
-                className="btn btn--primary"
+                className='btn btn--primary'
                 onClick={adicionarItem}
-                type="button"
+                type='button'
               >
                 Adicionar item
               </button>
             </div>
           </div>
 
-          <div className="orcamentos-page__items-table">
+          <div className='orcamentos-page__items-table'>
             <DataTable
               columns={[
                 { key: 'codigo', label: 'Código' },
@@ -759,25 +759,25 @@ export default function Orcamentos() {
                 { key: 'total_liquido', label: 'Total líquido' },
               ]}
               rows={rowsItens}
-              emptyText="Nenhum item adicionado ao orçamento."
+              emptyText='Nenhum item adicionado ao orçamento.'
               onRowContextMenu={handleItemContextMenu}
             />
           </div>
 
-          <div className="orcamentos-page__actions">
+          <div className='orcamentos-page__actions'>
             <button
-              className="btn btn--secondary"
+              className='btn btn--secondary'
               onClick={limparFormulario}
-              type="button"
+              type='button'
             >
               Limpar
             </button>
 
             <button
-              className="btn btn--secondary"
+              className='btn btn--secondary'
               onClick={abrirModalSalvar}
               disabled={saving}
-              type="button"
+              type='button'
             >
               {modoFormulario === 'edicao'
                 ? 'Finalizar edição'
@@ -785,9 +785,9 @@ export default function Orcamentos() {
             </button>
 
             <button
-              className="btn btn--primary"
+              className='btn btn--primary'
               onClick={abrirModalVenda}
-              type="button"
+              type='button'
             >
               Lançar venda
             </button>
@@ -795,7 +795,7 @@ export default function Orcamentos() {
         </div>
       </Card>
 
-      <Card title="Lista de orçamentos">
+      <Card title='Lista de orçamentos'>
         <DataTable
           columns={[
             { key: 'id', label: 'ID' },
@@ -813,10 +813,10 @@ export default function Orcamentos() {
                   row.status === 'rascunho' || row.status === 'enviado';
 
                 return (
-                  <div className="page-actions">
+                  <div className='page-actions'>
                     {podeEditar && (
                       <button
-                        className="btn btn--secondary"
+                        className='btn btn--secondary'
                         onClick={() => editarOrcamento(row.id)}
                         disabled={loading}
                       >
@@ -825,7 +825,7 @@ export default function Orcamentos() {
                     )}
 
                     <button
-                      className="btn btn--secondary"
+                      className='btn btn--secondary'
                       onClick={() => clonarOrcamento(row.id)}
                       disabled={loading}
                     >
@@ -833,24 +833,24 @@ export default function Orcamentos() {
                     </button>
 
                     {row.status === 'aprovado' ? (
-                      <span className="orcamentos-page__status-text orcamentos-page__status-text--success">
+                      <span className='orcamentos-page__status-text orcamentos-page__status-text--success'>
                         Orçamento aprovado
                       </span>
                     ) : row.status === 'rejeitado' ? (
-                      <span className="orcamentos-page__status-text orcamentos-page__status-text--danger">
+                      <span className='orcamentos-page__status-text orcamentos-page__status-text--danger'>
                         Orçamento rejeitado
                       </span>
                     ) : (
                       <>
                         <button
-                          className="btn btn--primary"
+                          className='btn btn--primary'
                           onClick={() => decide(row.id, 'aprovado')}
                           disabled={loading}
                         >
                           Aprovar
                         </button>
                         <button
-                          className="btn btn--secondary"
+                          className='btn btn--secondary'
                           onClick={() => decide(row.id, 'rejeitado')}
                           disabled={loading}
                         >
@@ -868,48 +868,48 @@ export default function Orcamentos() {
       </Card>
 
       {modalVendaOpen && (
-        <div className="orcamentos-modal">
+        <div className='orcamentos-modal'>
           <div
-            className="orcamentos-modal__backdrop"
+            className='orcamentos-modal__backdrop'
             onClick={() => setModalVendaOpen(false)}
           />
 
-          <div className="orcamentos-modal__card">
-            <h2 className="orcamentos-modal__title">
+          <div className='orcamentos-modal__card'>
+            <h2 className='orcamentos-modal__title'>
               Deseja finalizar esta venda?
             </h2>
 
-            <div className="orcamentos-modal__summary">
-              <div className="orcamentos-modal__row">
+            <div className='orcamentos-modal__summary'>
+              <div className='orcamentos-modal__row'>
                 <span>Itens</span>
                 <strong>{totaisVenda.itens}</strong>
               </div>
 
-              <div className="orcamentos-modal__row">
+              <div className='orcamentos-modal__row'>
                 <span>Total bruto</span>
                 <strong>{formatMoney(totaisVenda.bruto)}</strong>
               </div>
 
-              <div className="orcamentos-modal__row">
+              <div className='orcamentos-modal__row'>
                 <span>Desconto dos itens</span>
                 <strong>{formatMoney(totaisVenda.descontoItens)}</strong>
               </div>
 
-              <div className="orcamentos-modal__discount-box">
-                <label className="orcamentos-modal__label">
+              <div className='orcamentos-modal__discount-box'>
+                <label className='orcamentos-modal__label'>
                   Desconto geral
                 </label>
 
-                <div className="orcamentos-modal__discount-action">
+                <div className='orcamentos-modal__discount-action'>
                   <input
-                    className="orcamentos-modal__input"
+                    className='orcamentos-modal__input'
                     value={descontoGeralVenda}
                     onChange={(e) => setDescontoGeralVenda(e.target.value)}
-                    placeholder="0,00"
+                    placeholder='0,00'
                   />
                   <button
-                    className="btn btn--secondary"
-                    type="button"
+                    className='btn btn--secondary'
+                    type='button'
                     onClick={() => setDescontoGeralVenda(descontoGeralVenda)}
                   >
                     Aplicar desconto
@@ -917,24 +917,24 @@ export default function Orcamentos() {
                 </div>
               </div>
 
-              <div className="orcamentos-modal__row orcamentos-modal__row--total">
+              <div className='orcamentos-modal__row orcamentos-modal__row--total'>
                 <span>Total líquido</span>
                 <strong>{formatMoney(totaisVenda.liquido)}</strong>
               </div>
             </div>
 
-            <div className="orcamentos-modal__actions">
+            <div className='orcamentos-modal__actions'>
               <button
-                className="btn btn--secondary"
-                type="button"
+                className='btn btn--secondary'
+                type='button'
                 onClick={() => setModalVendaOpen(false)}
               >
                 Cancelar
               </button>
 
               <button
-                className="btn btn--primary"
-                type="button"
+                className='btn btn--primary'
+                type='button'
                 onClick={lancarVenda}
                 disabled={loadingVenda}
               >
@@ -946,37 +946,37 @@ export default function Orcamentos() {
       )}
 
       {modalImpressaoOpen && (
-        <div className="orcamentos-modal">
+        <div className='orcamentos-modal'>
           <div
-            className="orcamentos-modal__backdrop"
+            className='orcamentos-modal__backdrop'
             onClick={() => setModalImpressaoOpen(false)}
           />
 
-          <div className="orcamentos-modal__card">
-            <h2 className="orcamentos-modal__title">
+          <div className='orcamentos-modal__card'>
+            <h2 className='orcamentos-modal__title'>
               Deseja imprimir este documento?
             </h2>
 
-            <div className="orcamentos-modal__actions">
+            <div className='orcamentos-modal__actions'>
               <button
-                className="btn btn--secondary"
-                type="button"
+                className='btn btn--secondary'
+                type='button'
                 onClick={() => setModalImpressaoOpen(false)}
               >
                 Não
               </button>
 
               <button
-                className="btn btn--primary"
-                type="button"
+                className='btn btn--primary'
+                type='button'
                 onClick={() => {
                   const html = gerarHtmlDocumento({
                     tipo: documentoParaImprimir.tipo,
                     empresa: {
-                      nome: 'Torneadora Universal',
+                      nome: 'TORNEADORA UNIVERSAL',
                       logoUrl: '/logo.png',
-                      endereco: 'R THIAGO MAGALHÃES NUNES, 1369, CENTRO',
-                      cidade: 'PEIXOTO DE AZEVEDO',
+                      endereco: 'R Thiago Magalhães Nunes, 1369, Centro',
+                      cidade: 'Peixoto De Azevedo',
                       estado: 'MT',
                       telefone: '(66) 999751055',
                       email: 'gerente.torneadorauniversal@gmail.com',
