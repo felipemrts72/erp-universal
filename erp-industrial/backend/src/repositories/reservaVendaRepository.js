@@ -57,4 +57,48 @@ export const reservaVendaRepository = {
 
     return rows;
   },
+  async buscarPendencia(venda_id, produto_id) {
+    const { rows } = await pool.query(
+      `
+    SELECT
+      v.id AS venda_id,
+      iv.produto_id,
+      iv.quantidade AS quantidade_vendida,
+      COALESCE(rv.total_reservado, 0) AS quantidade_reservada,
+      GREATEST(iv.quantidade - COALESCE(rv.total_reservado, 0), 0) AS faltante
+    FROM vendas v
+    JOIN itens_vendas iv ON iv.venda_id = v.id
+    LEFT JOIN (
+      SELECT
+        venda_id,
+        produto_id,
+        SUM(quantidade) AS total_reservado
+      FROM reservas_venda
+      WHERE status = 'reservado'
+      GROUP BY venda_id, produto_id
+    ) rv
+      ON rv.venda_id = v.id
+     AND rv.produto_id = iv.produto_id
+    WHERE v.id = $1
+      AND iv.produto_id = $2
+    LIMIT 1
+  `,
+      [venda_id, produto_id],
+    );
+
+    return rows[0] || null;
+  },
+  async getReservadoPorProduto(produto_id, client = pool) {
+    const { rows } = await client.query(
+      `
+    SELECT COALESCE(SUM(quantidade), 0) AS total_reservado
+    FROM reservas_venda
+    WHERE produto_id = $1
+      AND status = 'reservado'
+    `,
+      [produto_id],
+    );
+
+    return Number(rows[0]?.total_reservado || 0);
+  },
 };

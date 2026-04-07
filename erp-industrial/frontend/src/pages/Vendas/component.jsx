@@ -102,6 +102,16 @@ export default function Vendas() {
     load();
   }, []);
 
+  useEffect(() => {
+    if (!toast.open) return;
+
+    const timer = setTimeout(() => {
+      closeToast();
+    }, 3500);
+
+    return () => clearTimeout(timer);
+  }, [toast.open]);
+
   const totais = useMemo(() => {
     const bruto = itens.reduce((acc, item) => {
       return acc + toNumber(item.quantidade) * toNumber(item.preco_unitario);
@@ -248,17 +258,41 @@ export default function Vendas() {
       await load();
     } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.message || 'Erro ao criar venda', 'error');
+
+      const errorData = err?.response?.data;
+
+      if (errorData?.code === 'ESTOQUE_INSUFICIENTE') {
+        const itens = errorData?.itens_sem_estoque || [];
+
+        const mensagemDetalhada = itens.length
+          ? itens
+              .map(
+                (item) =>
+                  `${item.produto_nome}: saldo ${item.saldo_atual}, faltam ${item.faltante}`,
+              )
+              .join(' | ')
+          : errorData?.message;
+
+        showToast(
+          mensagemDetalhada || 'Há itens sem estoque suficiente.',
+          'warning',
+        );
+
+        return;
+      }
+
+      showToast(errorData?.message || 'Erro ao criar venda', 'error');
     } finally {
       setSaving(false);
     }
   };
 
   const showToast = (message, type = 'error') => {
-    setToast((prev) => ({
-      ...prev,
-      open: false,
-    }));
+    setToast({
+      open: true,
+      message,
+      type,
+    });
   };
 
   const closeToast = () => {
@@ -277,21 +311,22 @@ export default function Vendas() {
       />
       {(loading || saving) && <LoadingModal />}
       <Card
-        title="Vendas"
-        subtitle="Acompanhe somente o que ainda está em aberto."
+        title='Vendas'
+        subtitle='Acompanhe somente o que ainda está em aberto.'
       >
-        <div className="vendas-page__top-action">
+        <div className='vendas-page__top-action'>
           <button
-            className="btn btn--primary vendas-page__new-button"
-            type="button"
+            className='btn btn--primary vendas-page__new-button'
+            type='button'
             onClick={() => {
+              closeToast();
               setModalOpen(true);
             }}
           >
             Realizar venda
           </button>
         </div>
-        <div className="vendas-page__cards">
+        <div className='vendas-page__cards'>
           {items.length ? (
             items.map((venda) => {
               const itensVenda = Array.isArray(venda.itens) ? venda.itens : [];
@@ -299,13 +334,13 @@ export default function Vendas() {
               const valorTotal = Number(venda.valor_total || 0);
 
               return (
-                <article key={venda.id} className="vendas-page__sale-card">
-                  <div className="vendas-page__sale-header">
+                <article key={venda.id} className='vendas-page__sale-card'>
+                  <div className='vendas-page__sale-header'>
                     <div>
-                      <h3 className="vendas-page__sale-title">
+                      <h3 className='vendas-page__sale-title'>
                         Venda #{venda.id}
                       </h3>
-                      <p className="vendas-page__sale-client">
+                      <p className='vendas-page__sale-client'>
                         {venda.cliente_nome || 'Cliente não informado'}
                       </p>
                     </div>
@@ -315,36 +350,36 @@ export default function Vendas() {
                     </span>
                   </div>
 
-                  <div className="vendas-page__sale-body">
-                    <div className="vendas-page__meta">
-                      <span className="vendas-page__meta-label">Criada em</span>
+                  <div className='vendas-page__sale-body'>
+                    <div className='vendas-page__meta'>
+                      <span className='vendas-page__meta-label'>Criada em</span>
                       <strong>{formatDate(venda.criado_em)}</strong>
                     </div>
 
-                    <div className="vendas-page__meta">
-                      <span className="vendas-page__meta-label">Itens</span>
+                    <div className='vendas-page__meta'>
+                      <span className='vendas-page__meta-label'>Itens</span>
                       <strong>{totalItens}</strong>
                     </div>
 
-                    <div className="vendas-page__meta">
-                      <span className="vendas-page__meta-label">
+                    <div className='vendas-page__meta'>
+                      <span className='vendas-page__meta-label'>
                         Valor total
                       </span>
                       <strong>{formatMoney(valorTotal)}</strong>
                     </div>
                   </div>
 
-                  <div className="vendas-page__sale-items">
+                  <div className='vendas-page__sale-items'>
                     {itensVenda.map((item) => (
                       <div
                         key={`${venda.id}-${item.id || item.produto_id}`}
-                        className="vendas-page__sale-item"
+                        className='vendas-page__sale-item'
                       >
-                        <span className="vendas-page__sale-item-name">
+                        <span className='vendas-page__sale-item-name'>
                           {item.produto_nome}
                         </span>
 
-                        <span className="vendas-page__sale-item-detail">
+                        <span className='vendas-page__sale-item-detail'>
                           {item.quantidade} × {formatMoney(item.preco_unitario)}
                         </span>
                       </div>
@@ -354,7 +389,7 @@ export default function Vendas() {
               );
             })
           ) : (
-            <div className="vendas-page__empty">
+            <div className='vendas-page__empty'>
               Nenhuma venda aberta encontrada.
             </div>
           )}
@@ -362,30 +397,30 @@ export default function Vendas() {
       </Card>
 
       {modalOpen && (
-        <div className="vendas-page__modal">
+        <div className='vendas-page__modal'>
           <div
-            className="vendas-page__modal-backdrop"
+            className='vendas-page__modal-backdrop'
             onClick={() => setModalOpen(false)}
           />
 
-          <div className="vendas-page__modal-card">
-            <div className="vendas-page__modal-header">
-              <h2 className="vendas-page__modal-title">Realizar venda</h2>
+          <div className='vendas-page__modal-card'>
+            <div className='vendas-page__modal-header'>
+              <h2 className='vendas-page__modal-title'>Realizar venda</h2>
               <button
-                type="button"
-                className="vendas-page__modal-close"
+                type='button'
+                className='vendas-page__modal-close'
                 onClick={() => setModalOpen(false)}
               >
                 ×
               </button>
             </div>
 
-            <div className="vendas-page__form-grid">
-              <div className="vendas-page__field vendas-page__field--full">
+            <div className='vendas-page__form-grid'>
+              <div className='vendas-page__field vendas-page__field--full'>
                 <BuscaManual
-                  endpoint="/clientes/busca"
-                  label="Cliente"
-                  placeholder="Digite 3 letras, Enter ou clique na lupa"
+                  endpoint='/clientes/busca'
+                  label='Cliente'
+                  placeholder='Digite 3 letras, Enter ou clique na lupa'
                   onSelect={(id, item) => {
                     handleClienteChange('cliente_id', id || null);
                     handleClienteChange('clienteNome', item?.nome || '');
@@ -402,7 +437,7 @@ export default function Vendas() {
                 />
               </div>
 
-              <label className="vendas-page__field">
+              <label className='vendas-page__field'>
                 <span>Telefone</span>
                 <input
                   value={clienteForm.telefone}
@@ -412,7 +447,7 @@ export default function Vendas() {
                 />
               </label>
 
-              <label className="vendas-page__field">
+              <label className='vendas-page__field'>
                 <span>E-mail</span>
                 <input
                   value={clienteForm.email}
@@ -420,7 +455,7 @@ export default function Vendas() {
                 />
               </label>
 
-              <label className="vendas-page__field">
+              <label className='vendas-page__field'>
                 <span>CPF/CNPJ</span>
                 <input
                   value={clienteForm.cpf_cnpj}
@@ -430,7 +465,7 @@ export default function Vendas() {
                 />
               </label>
 
-              <label className="vendas-page__field vendas-page__field--full">
+              <label className='vendas-page__field vendas-page__field--full'>
                 <span>Endereço</span>
                 <input
                   value={clienteForm.endereco}
@@ -440,7 +475,7 @@ export default function Vendas() {
                 />
               </label>
 
-              <label className="vendas-page__field">
+              <label className='vendas-page__field'>
                 <span>Número</span>
                 <input
                   value={clienteForm.numero}
@@ -450,7 +485,7 @@ export default function Vendas() {
                 />
               </label>
 
-              <label className="vendas-page__field">
+              <label className='vendas-page__field'>
                 <span>Bairro</span>
                 <input
                   value={clienteForm.bairro}
@@ -460,7 +495,7 @@ export default function Vendas() {
                 />
               </label>
 
-              <label className="vendas-page__field">
+              <label className='vendas-page__field'>
                 <span>Cidade</span>
                 <input
                   value={clienteForm.cidade}
@@ -470,7 +505,7 @@ export default function Vendas() {
                 />
               </label>
 
-              <label className="vendas-page__field">
+              <label className='vendas-page__field'>
                 <span>CEP</span>
                 <input
                   value={clienteForm.cep}
@@ -479,21 +514,21 @@ export default function Vendas() {
               </label>
             </div>
 
-            <div className="vendas-page__item-section">
-              <h3 className="vendas-page__section-title">Itens da venda</h3>
+            <div className='vendas-page__item-section'>
+              <h3 className='vendas-page__section-title'>Itens da venda</h3>
 
-              <div className="vendas-page__item-form">
-                <div className="vendas-page__field vendas-page__field--product">
+              <div className='vendas-page__item-form'>
+                <div className='vendas-page__field vendas-page__field--product'>
                   <BuscaManual
-                    endpoint="/produtos/busca"
-                    label="Produto"
-                    placeholder="Digite 3 letras, Enter ou clique na lupa"
+                    endpoint='/produtos/busca'
+                    label='Produto'
+                    placeholder='Digite 3 letras, Enter ou clique na lupa'
                     filterOptions={(item) => item.tipo !== 'consumivel'}
                     onSelect={handleProdutoSelect}
                   />
                 </div>
 
-                <label className="vendas-page__field">
+                <label className='vendas-page__field'>
                   <span>Quantidade</span>
                   <input
                     value={itemForm.quantidade}
@@ -506,7 +541,7 @@ export default function Vendas() {
                   />
                 </label>
 
-                <label className="vendas-page__field">
+                <label className='vendas-page__field'>
                   <span>Preço unitário</span>
                   <input
                     value={itemForm.preco_unitario}
@@ -519,10 +554,10 @@ export default function Vendas() {
                   />
                 </label>
 
-                <div className="vendas-page__field vendas-page__field--button">
+                <div className='vendas-page__field vendas-page__field--button'>
                   <button
-                    type="button"
-                    className="btn btn--secondary"
+                    type='button'
+                    className='btn btn--secondary'
                     onClick={adicionarItem}
                   >
                     Adicionar item
@@ -530,12 +565,12 @@ export default function Vendas() {
                 </div>
               </div>
 
-              <div className="vendas-page__item-list">
+              <div className='vendas-page__item-list'>
                 {itens.length ? (
                   itens.map((item, index) => (
                     <div
                       key={`${item.produto_id}-${index}`}
-                      className="vendas-page__item-card"
+                      className='vendas-page__item-card'
                     >
                       <div>
                         <strong>{item.produto_nome}</strong>
@@ -545,8 +580,8 @@ export default function Vendas() {
                       </div>
 
                       <button
-                        type="button"
-                        className="btn btn--secondary"
+                        type='button'
+                        className='btn btn--secondary'
                         onClick={() => removerItem(index)}
                       >
                         Remover
@@ -554,22 +589,22 @@ export default function Vendas() {
                     </div>
                   ))
                 ) : (
-                  <div className="vendas-page__empty-items">
+                  <div className='vendas-page__empty-items'>
                     Nenhum item adicionado.
                   </div>
                 )}
               </div>
 
-              <div className="vendas-page__summary">
+              <div className='vendas-page__summary'>
                 <span>Total de itens: {totais.itens}</span>
                 <strong>Total: {formatMoney(totais.bruto)}</strong>
               </div>
             </div>
 
-            <div className="vendas-page__modal-actions">
+            <div className='vendas-page__modal-actions'>
               <button
-                type="button"
-                className="btn btn--secondary"
+                type='button'
+                className='btn btn--secondary'
                 onClick={() => {
                   resetFormulario();
                   setModalOpen(false);
@@ -579,8 +614,8 @@ export default function Vendas() {
               </button>
 
               <button
-                type="button"
-                className="btn btn--primary"
+                type='button'
+                className='btn btn--primary'
                 onClick={criarVenda}
               >
                 Confirmar venda

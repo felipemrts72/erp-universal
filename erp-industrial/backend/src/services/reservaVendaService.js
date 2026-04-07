@@ -22,6 +22,38 @@ export const reservaVendaService = {
       if (!quantidade || Number(quantidade) <= 0) {
         throw httpError('Quantidade inválida', 400);
       }
+      if (!custoUnitario || Number(custoUnitario) <= 0) {
+        throw httpError('Custo unitário inválido', 400);
+      }
+      if (!fornecedor || !String(fornecedor).trim()) {
+        throw httpError('Fornecedor obrigatório', 400);
+      }
+      if (!usuario_id) {
+        throw httpError('Usuário obrigatório', 400);
+      }
+
+      const pendencia = await reservaVendaRepository.buscarPendencia(
+        venda_id,
+        produto_id,
+      );
+
+      if (!pendencia) {
+        throw httpError('Pendência da venda não encontrada', 404);
+      }
+
+      if (Number(pendencia.faltante) <= 0) {
+        throw httpError(
+          'Essa venda já está totalmente atendida para esse produto',
+          400,
+        );
+      }
+
+      if (Number(quantidade) > Number(pendencia.faltante)) {
+        throw httpError(
+          `A quantidade informada é maior que o faltante da venda. Faltante atual: ${pendencia.faltante}`,
+          400,
+        );
+      }
 
       const saldoAtual = await estoqueRepository.getEstoqueAtual(
         produto_id,

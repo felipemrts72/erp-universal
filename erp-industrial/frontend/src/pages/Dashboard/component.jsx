@@ -6,7 +6,8 @@ import StatusBadge from '../../components/StatusBadge';
 import './style.css';
 
 export default function Dashboard() {
-  const [resumo, setResumo] = useState([]);
+  const [modoDasboard, setModoDashboard] = useState('estoque');
+  const [resumo, setResumo] = useState(null);
   const [alertas, setAlertas] = useState([]);
   const [entregas, setEntregas] = useState([]);
 
@@ -17,32 +18,40 @@ export default function Dashboard() {
         api.get('/dashboard/alertas'),
         api.get('/entregas/pendentes'),
       ]);
-      if (r1.status === 'fulfilled') setResumo(r1.value.data || []);
+
+      if (r1.status === 'fulfilled') setResumo(r1.value.data || null);
       if (r2.status === 'fulfilled') setAlertas(r2.value.data || []);
       if (r3.status === 'fulfilled') setEntregas(r3.value.data || []);
     };
+
     load();
   }, []);
 
   return (
     <>
-      <section className="dashboard__cards">
-        {(resumo.length
-          ? resumo
-          : [
-              { label: 'Produção Hoje', valor: '--' },
-              { label: 'Vendas Abertas', valor: '--' },
-              { label: 'Baixo Estoque', valor: '--' },
-            ]
-        ).map((item) => (
+      <section className='dashboard__cards'>
+        {[
+          {
+            label: 'Produção em andamento',
+            valor: resumo?.producaoEmAndamento ?? '--',
+          },
+          {
+            label: 'Vendas abertas',
+            valor: resumo?.vendasAbertas ?? '--',
+          },
+          {
+            label: 'Itens para comprar',
+            valor: resumo?.itensParaComprar ?? '--',
+          },
+        ].map((item) => (
           <Card key={item.label} title={item.label}>
-            <strong className="dashboard__metric">{item.valor}</strong>
+            <strong className='dashboard__metric'>{item.valor}</strong>
           </Card>
         ))}
       </section>
 
-      <Card title="Alertas operacionais">
-        <ul className="dashboard__alerts">
+      <Card title='Alertas operacionais'>
+        <ul className='dashboard__alerts'>
           {(alertas.length
             ? alertas
             : ['Sem alertas críticos no momento.']
@@ -52,12 +61,23 @@ export default function Dashboard() {
         </ul>
       </Card>
 
-      <Card title="Entregas pendentes">
+      <Card title='Entregas pendentes'>
         <DataTable
           columns={[
             { key: 'id', label: 'ID' },
-            { key: 'cliente', label: 'Cliente' },
-            { key: 'previsao', label: 'Previsão' },
+            {
+              key: 'produto_nome',
+              label: 'Produto',
+              render: (_, row) => row.produto_nome || '-',
+            },
+            {
+              key: 'criado_em',
+              label: 'Criado em',
+              render: (_, row) =>
+                row.criado_em
+                  ? new Date(row.criado_em).toLocaleDateString('pt-BR')
+                  : '-',
+            },
             {
               key: 'status',
               label: 'Status',

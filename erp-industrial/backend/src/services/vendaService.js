@@ -3,6 +3,7 @@ import { vendaRepository } from '../repositories/vendaRepository.js';
 import { produtoRepository } from '../repositories/produtoRepository.js';
 import { estoqueRepository } from '../repositories/estoqueRepository.js';
 import { producaoRepository } from '../repositories/producaoRepository.js';
+import { reservaVendaRepository } from '../repositories/reservaVendaRepository.js';
 import { httpError } from '../utils/httpError.js';
 
 function toNumber(value) {
@@ -10,23 +11,38 @@ function toNumber(value) {
   return Number(value) || 0;
 }
 
-function montarErroEstoqueInsuficiente(produto, saldo, quantidade) {
-  const erro = httpError('Há itens sem estoque suficiente', 409);
-  erro.code = 'ESTOQUE_INSUFICIENTE';
-  erro.itens_sem_estoque = [
-    {
-      produto_id: produto.id,
-      produto_nome: produto.nome,
-      quantidade_solicitada: Number(quantidade),
-      saldo_atual: Number(saldo),
-      faltante: Number(quantidade) - Number(saldo),
-    },
-  ];
-  return erro;
+async function reservarDisponivelParaVenda(vendaId, item, produto) {
+  const saldoFisico = await estoqueRepository.getEstoqueAtual(item.produto_id);
+  const reservado = await reservaVendaRepository.getReservadoPorProduto(
+    item.produto_id,
+  );
+
+  const disponivel = Math.max(Number(saldoFisico) - Number(reservado), 0);
+  const quantidadeVendida = Number(item.quantidade);
+  const quantidadeReservar = Math.min(disponivel, quantidadeVendida);
+  const faltante = Math.max(quantidadeVendida - quantidadeReservar, 0);
+
+  if (quantidadeReservar > 0) {
+    await reservaVendaRepository.criar({
+      venda_id: vendaId,
+      produto_id: item.produto_id,
+      quantidade: quantidadeReservar,
+      origem_movimento_id: null,
+      status: 'reservado',
+    });
+  }
+
+  return {
+    saldoFisico,
+    reservado,
+    disponivel,
+    quantidadeReservar,
+    faltante,
+  };
 }
 
 export const vendaService = {
-  async createFromOrcamento(orcamentoId, options = {}) {
+  async createFromOrcamento(orcamentoId) {
     const orcamento = await orcamentoRepository.getWithItens(orcamentoId);
 
     if (!orcamento) throw httpError('Orçamento não encontrado', 404);
@@ -51,51 +67,17 @@ export const vendaService = {
       }
 
       if (produto.tipo === 'revenda') {
-        const saldo = await estoqueRepository.getEstoqueAtual(item.produto_id);
-
-        if (saldo < Number(item.quantidade)) {
-          if (!options?.forcar_estoque_negativo) {
-            throw montarErroEstoqueInsuficiente(
-              produto,
-              saldo,
-              item.quantidade,
-            );
-          }
-        }
-
-        await estoqueRepository.criarMovimento({
-          produtoId: item.produto_id,
-          quantidade: -Number(item.quantidade),
-          tipoMovimento: 'saida',
-          referenciaTipo: 'venda',
-          referenciaId: venda.id,
-        });
+        await reservarDisponivelParaVenda(venda.id, item, produto);
       }
 
       if (produto.tipo === 'fabricado') {
-        const saldo = await estoqueRepository.getEstoqueAtual(item.produto_id);
+        const { faltante } = await reservarDisponivelParaVenda(
+          venda.id,
+          item,
+          produto,
+        );
 
-        if (saldo >= Number(item.quantidade)) {
-          await estoqueRepository.criarMovimento({
-            produtoId: item.produto_id,
-            quantidade: -Number(item.quantidade),
-            tipoMovimento: 'saida',
-            referenciaTipo: 'venda',
-            referenciaId: venda.id,
-          });
-        } else {
-          const faltante = Number(item.quantidade) - saldo;
-
-          if (saldo > 0) {
-            await estoqueRepository.criarMovimento({
-              produtoId: item.produto_id,
-              quantidade: -saldo,
-              tipoMovimento: 'saida',
-              referenciaTipo: 'venda',
-              referenciaId: venda.id,
-            });
-          }
-
+        if (faltante > 0) {
           await producaoRepository.createOrdem({
             produtoId: item.produto_id,
             vendaId: venda.id,
@@ -109,7 +91,7 @@ export const vendaService = {
     return venda;
   },
 
-  async createDireta(payload, options = {}) {
+  async createDireta(payload) {
     if (
       !payload.clienteNome ||
       !Array.isArray(payload.itens) ||
@@ -146,51 +128,17 @@ export const vendaService = {
       }
 
       if (produto.tipo === 'revenda') {
-        const saldo = await estoqueRepository.getEstoqueAtual(item.produto_id);
-
-        if (saldo < Number(item.quantidade)) {
-          if (!options?.forcar_estoque_negativo) {
-            throw montarErroEstoqueInsuficiente(
-              produto,
-              saldo,
-              item.quantidade,
-            );
-          }
-        }
-
-        await estoqueRepository.criarMovimento({
-          produtoId: item.produto_id,
-          quantidade: -Number(item.quantidade),
-          tipoMovimento: 'saida',
-          referenciaTipo: 'venda',
-          referenciaId: venda.id,
-        });
+        await reservarDisponivelParaVenda(venda.id, item, produto);
       }
 
       if (produto.tipo === 'fabricado') {
-        const saldo = await estoqueRepository.getEstoqueAtual(item.produto_id);
+        const { faltante } = await reservarDisponivelParaVenda(
+          venda.id,
+          item,
+          produto,
+        );
 
-        if (saldo >= Number(item.quantidade)) {
-          await estoqueRepository.criarMovimento({
-            produtoId: item.produto_id,
-            quantidade: -Number(item.quantidade),
-            tipoMovimento: 'saida',
-            referenciaTipo: 'venda',
-            referenciaId: venda.id,
-          });
-        } else {
-          const faltante = Number(item.quantidade) - saldo;
-
-          if (saldo > 0) {
-            await estoqueRepository.criarMovimento({
-              produtoId: item.produto_id,
-              quantidade: -saldo,
-              tipoMovimento: 'saida',
-              referenciaTipo: 'venda',
-              referenciaId: venda.id,
-            });
-          }
-
+        if (faltante > 0) {
           await producaoRepository.createOrdem({
             produtoId: item.produto_id,
             vendaId: venda.id,

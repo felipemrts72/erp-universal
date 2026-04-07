@@ -278,5 +278,15 @@
     "custo_unitario": 15000,
     "fornecedor": "TORNEADORA UNIVERSAL",
     "usuario_id": 1
+  },
+  {
+    "id": 29,
+    "criado_em": "2026-04-07T02:14:13.105Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 3,
+    "quantidade": 2,
+    "custo_unitario": 190,
+    "fornecedor": "ROLMASTER",
+    "usuario_id": 1
   }
 ]

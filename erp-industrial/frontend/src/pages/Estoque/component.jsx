@@ -41,6 +41,14 @@ export default function Estoque() {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('error');
 
+  const [pendenciasCompra, setPendenciasCompra] = useState([]);
+  const [modalVinculoOpen, setModalVinculoOpen] = useState(false);
+  const [pendenciaSelecionada, setPendenciaSelecionada] = useState(null);
+
+  const [quantidadeVinculo, setQuantidadeVinculo] = useState('');
+  const [custoUnitarioVinculo, setCustoUnitarioVinculo] = useState('');
+  const [fornecedorVinculo, setFornecedorVinculo] = useState('');
+
   const showToast = (message, type = 'error') => {
     setToastMessage(message);
     setToastType(type);
@@ -60,8 +68,9 @@ export default function Estoque() {
       setItems([]);
     }
 
-    await loadMovimentos(1);
+    await Promise.all([loadMovimentos(1), loadPendenciasCompra()]);
   };
+
   const loadMovimentos = async (pageNumber = 1) => {
     try {
       const { data } = await api.get('/estoque/movimentos', {
@@ -86,6 +95,82 @@ export default function Estoque() {
 
       showToast(
         error?.response?.data?.message || 'Erro ao carregar movimentos.',
+        'error',
+      );
+    }
+  };
+
+  const loadPendenciasCompra = async () => {
+    try {
+      const { data } = await api.get('/reservas-venda/pendentes-compra');
+      setPendenciasCompra(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Erro ao carregar pendências de compra:', error);
+      setPendenciasCompra([]);
+      showToast(
+        error?.response?.data?.message ||
+          'Erro ao carregar vendas em processo de compra.',
+        'error',
+      );
+    }
+  };
+
+  const abrirModalVinculo = (pendencia) => {
+    setPendenciaSelecionada(pendencia);
+    setQuantidadeVinculo(String(pendencia.faltante || ''));
+    setCustoUnitarioVinculo('');
+    setFornecedorVinculo('');
+    setModalVinculoOpen(true);
+  };
+
+  const vincularEntradaNaVenda = async () => {
+    if (!pendenciaSelecionada?.venda_id) {
+      showToast('Venda não identificada.', 'error');
+      return;
+    }
+
+    if (!pendenciaSelecionada?.produto_id) {
+      showToast('Produto não identificado.', 'error');
+      return;
+    }
+
+    if (!quantidadeVinculo || Number(quantidadeVinculo) <= 0) {
+      showToast('Informe uma quantidade válida.', 'error');
+      return;
+    }
+
+    if (!custoUnitarioVinculo || Number(custoUnitarioVinculo) <= 0) {
+      showToast('Informe um custo unitário válido.', 'error');
+      return;
+    }
+
+    if (!fornecedorVinculo.trim()) {
+      showToast('Informe o fornecedor.', 'error');
+      return;
+    }
+
+    try {
+      await api.post('/reservas-venda/vincular-entrada', {
+        venda_id: pendenciaSelecionada.venda_id,
+        produto_id: pendenciaSelecionada.produto_id,
+        quantidade: Number(String(quantidadeVinculo).replace(',', '.')),
+        custoUnitario: Number(String(custoUnitarioVinculo).replace(',', '.')),
+        fornecedor: fornecedorVinculo,
+        usuario_id: 1,
+      });
+
+      setModalVinculoOpen(false);
+      setPendenciaSelecionada(null);
+      setQuantidadeVinculo('');
+      setCustoUnitarioVinculo('');
+      setFornecedorVinculo('');
+
+      await load();
+      showToast('Entrada vinculada à venda com sucesso.', 'success');
+    } catch (error) {
+      console.error(error);
+      showToast(
+        error?.response?.data?.message || 'Erro ao vincular entrada à venda.',
         'error',
       );
     }
@@ -213,11 +298,41 @@ export default function Estoque() {
           columns={[
             { key: 'produto', label: 'Produto' },
             { key: 'quantidade_atual', label: 'Saldo' },
+            { key: 'faltante_venda', label: 'Faltante venda' },
             { key: 'status', label: 'Status' },
           ]}
           rows={items}
         />
       </Card>
+
+      <Card title='Vendas em processo de compra'>
+        <DataTable
+          columns={[
+            { key: 'venda_id', label: 'Venda' },
+            { key: 'cliente_nome', label: 'Cliente' },
+            { key: 'produto_nome', label: 'Produto' },
+            { key: 'quantidade_vendida', label: 'Qtd. vendida' },
+            { key: 'quantidade_reservada', label: 'Qtd. reservada' },
+            { key: 'faltante', label: 'Faltante' },
+            {
+              key: 'acoes',
+              label: 'Ações',
+              render: (_, row) => (
+                <button
+                  className='btn btn--primary'
+                  type='button'
+                  onClick={() => abrirModalVinculo(row)}
+                >
+                  Vincular entrada
+                </button>
+              ),
+            },
+          ]}
+          rows={pendenciasCompra}
+          emptyText='Nenhuma venda pendente de compra no momento.'
+        />
+      </Card>
+
       <Card title='Filtro de movimentos'>
         <div className='form-grid'>
           <label className='form-control'>
@@ -312,6 +427,34 @@ export default function Estoque() {
             Próxima
           </button>
         </div>
+      </Card>
+
+      <Card title='Vendas em processo de compra'>
+        <DataTable
+          columns={[
+            { key: 'venda_id', label: 'Venda' },
+            { key: 'cliente_nome', label: 'Cliente' },
+            { key: 'produto_nome', label: 'Produto' },
+            { key: 'quantidade_vendida', label: 'Qtd. vendida' },
+            { key: 'quantidade_reservada', label: 'Qtd. reservada' },
+            { key: 'faltante', label: 'Faltante' },
+            {
+              key: 'acoes',
+              label: 'Ações',
+              render: (_, row) => (
+                <button
+                  className='btn btn--primary'
+                  type='button'
+                  onClick={() => abrirModalVinculo(row)}
+                >
+                  Vincular entrada
+                </button>
+              ),
+            },
+          ]}
+          rows={pendenciasCompra}
+          emptyText='Nenhuma venda pendente de compra no momento.'
+        />
       </Card>
     </>
   );

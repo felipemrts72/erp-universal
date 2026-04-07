@@ -18,20 +18,45 @@ export const estoqueRepository = {
   async listarResumoEstoque() {
     const { rows } = await pool.query(
       `
-      SELECT 
-        p.id AS produto_id,
-        p.nome AS produto,
-        p.estoque_minimo,
-        COALESCE(SUM(m.quantidade), 0) AS quantidade_atual,
-        CASE
-          WHEN COALESCE(SUM(m.quantidade), 0) < p.estoque_minimo THEN 'baixo'
-          ELSE 'ok'
-        END AS status
-      FROM produtos p
-      LEFT JOIN movimentos_estoque m ON m.produto_id = p.id
-      GROUP BY p.id
-      ORDER BY p.nome
-      `,
+    SELECT 
+      p.id AS produto_id,
+      p.nome AS produto,
+      p.estoque_minimo,
+      COALESCE(SUM(m.quantidade), 0) AS quantidade_atual,
+      COALESCE(pv.faltante_venda, 0) AS faltante_venda,
+      CASE
+        WHEN COALESCE(pv.faltante_venda, 0) > 0 THEN 'comprar'
+        WHEN COALESCE(SUM(m.quantidade), 0) < p.estoque_minimo THEN 'baixo'
+        ELSE 'ok'
+      END AS status
+    FROM produtos p
+    LEFT JOIN movimentos_estoque m ON m.produto_id = p.id
+    LEFT JOIN (
+      SELECT
+        iv.produto_id,
+        GREATEST(
+          SUM(iv.quantidade) - COALESCE(SUM(rv.quantidade_reservada), 0),
+          0
+        ) AS faltante_venda
+      FROM itens_vendas iv
+      JOIN vendas v ON v.id = iv.venda_id
+      LEFT JOIN (
+        SELECT
+          venda_id,
+          produto_id,
+          SUM(quantidade) AS quantidade_reservada
+        FROM reservas_venda
+        WHERE status = 'reservado'
+        GROUP BY venda_id, produto_id
+      ) rv
+        ON rv.venda_id = iv.venda_id
+       AND rv.produto_id = iv.produto_id
+      WHERE v.status IN ('aberto', 'parcial')
+      GROUP BY iv.produto_id
+    ) pv ON pv.produto_id = p.id
+    GROUP BY p.id, pv.faltante_venda
+    ORDER BY p.nome
+    `,
     );
 
     return rows;

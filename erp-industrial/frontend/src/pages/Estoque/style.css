@@ -1,1 +1,49 @@
 /* estilos específicos de Estoque */
+.vendas-page__modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+
+.vendas-page__modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(18, 27, 44, 0.35);
+  backdrop-filter: blur(4px);
+}
+
+.vendas-page__modal-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border-radius: 22px;
+  padding: 24px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.18);
+}
+
+.vendas-page__modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.vendas-page__modal-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.vendas-page__modal-close {
+  border: 0;
+  background: transparent;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}

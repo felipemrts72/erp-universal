@@ -133,8 +133,8 @@ router.post(
 );
 
 // DASHBOARD
-router.get('/dashboard', asyncHandler(dashboardController.resumo));
-router.get('/alertas', asyncHandler(dashboardController.alertas));
+router.get('/dashboard/resumo', asyncHandler(dashboardController.resumo));
+router.get('/dashboard/alertas', asyncHandler(dashboardController.alertas));
 
 // FUNCIONÁRIOS
 router.post('/funcionarios', asyncHandler(funcionarioController.create));
