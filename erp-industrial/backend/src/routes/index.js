@@ -14,6 +14,7 @@ import { consumivelController } from '../controllers/consumivelController.js';
 import { entregaController } from '../controllers/entregaController.js';
 import { clienteController } from '../controllers/clienteController.js';
 import { reservaVendaController } from '../controllers/reservaVendaController.js';
+import { transportadoraController } from '../controllers/transportadoraController.js';
 import { authMiddleware, isAdmin } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 import { normalizeNumbers } from '../middleware/numbers.js';
@@ -150,11 +151,37 @@ router.get('/funcionarios/busca', asyncHandler(funcionarioController.buscar));
 
 // ENTREGAS
 router.get('/entregas/pendentes', asyncHandler(entregaController.pendentes));
+router.get('/entregas/saidas-hoje', asyncHandler(entregaController.saidasHoje));
 router.get('/entregas', asyncHandler(entregaController.listar));
-
 router.patch(
   '/entregas/:id/entregar',
   asyncHandler(entregaController.entregar),
+);
+
+// TRANSPORTADORAS
+router.get('/transportadoras', asyncHandler(transportadoraController.list));
+router.get(
+  '/transportadoras/busca',
+  asyncHandler(transportadoraController.buscar),
+);
+router.get(
+  '/transportadoras/:id',
+  asyncHandler(transportadoraController.getById),
+);
+router.post(
+  '/transportadoras',
+  isAdmin,
+  asyncHandler(transportadoraController.create),
+);
+router.patch(
+  '/transportadoras/:id',
+  isAdmin,
+  asyncHandler(transportadoraController.update),
+);
+router.delete(
+  '/transportadoras/:id',
+  isAdmin,
+  asyncHandler(transportadoraController.delete),
 );
 
 // CLIENTES

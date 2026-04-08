@@ -298,5 +298,25 @@
     "custo_unitario": 900,
     "fornecedor": "TORNEADORA UNIVESAL",
     "usuario_id": 1
+  },
+  {
+    "id": 31,
+    "criado_em": "2026-04-08T04:07:15.902Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 2,
+    "quantidade": 40,
+    "custo_unitario": 100,
+    "fornecedor": "Torneadora Universal",
+    "usuario_id": 1
+  },
+  {
+    "id": 32,
+    "criado_em": "2026-04-08T04:20:25.710Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 2,
+    "quantidade": 50,
+    "custo_unitario": 110,
+    "fornecedor": "TORNEADORA UNIVERSAL",
+    "usuario_id": 1
   }
 ]

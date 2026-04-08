@@ -4,6 +4,56 @@ import { httpError } from '../utils/httpError.js';
 import { pool } from '../database/pool.js';
 
 export const reservaVendaService = {
+  async reservarEntradasPendentes(produto_id, client = pool) {
+    if (!produto_id) return { reservasCriadas: 0 };
+
+    const saldoFisico = await estoqueRepository.getEstoqueAtual(
+      produto_id,
+      client,
+    );
+    const reservadoTotal = await reservaVendaRepository.getReservadoPorProduto(
+      produto_id,
+      client,
+    );
+
+    let disponivel = Math.max(Number(saldoFisico) - Number(reservadoTotal), 0);
+
+    if (disponivel <= 0) {
+      return { reservasCriadas: 0 };
+    }
+
+    const pendencias = await reservaVendaRepository.listarPendenciasPorProduto(
+      produto_id,
+      client,
+    );
+
+    let reservasCriadas = 0;
+
+    for (const pendencia of pendencias) {
+      if (disponivel <= 0) break;
+
+      const faltante = Number(pendencia.faltante || 0);
+      if (faltante <= 0) continue;
+
+      const quantidadeReservar = Math.min(disponivel, faltante);
+
+      await reservaVendaRepository.criar(
+        {
+          venda_id: pendencia.venda_id,
+          produto_id,
+          quantidade: quantidadeReservar,
+          origem_movimento_id: null,
+          status: 'reservado',
+        },
+        client,
+      );
+
+      disponivel -= quantidadeReservar;
+      reservasCriadas += 1;
+    }
+
+    return { reservasCriadas };
+  },
   async vincularEntradaNaVenda({
     venda_id,
     produto_id,
@@ -123,5 +173,52 @@ export const reservaVendaService = {
 
   async listarPendentesCompra() {
     return reservaVendaRepository.listarPendentesCompra();
+  },
+
+  async getReservadoPorProduto(produto_id, client = pool) {
+    const { rows } = await client.query(
+      `
+    SELECT COALESCE(SUM(quantidade), 0) AS total
+    FROM reservas_venda
+    WHERE produto_id = $1
+      AND status = 'reservado'
+    `,
+      [produto_id],
+    );
+
+    return Number(rows[0]?.total || 0);
+  },
+
+  async listarPendenciasPorProduto(produto_id, client = pool) {
+    const { rows } = await client.query(
+      `
+    SELECT
+      iv.venda_id,
+      iv.produto_id,
+      iv.quantidade AS quantidade_vendida,
+      COALESCE(rv.quantidade_reservada, 0) AS quantidade_reservada,
+      GREATEST(iv.quantidade - COALESCE(rv.quantidade_reservada, 0), 0) AS faltante
+    FROM itens_vendas iv
+    JOIN vendas v ON v.id = iv.venda_id
+    LEFT JOIN (
+      SELECT
+        venda_id,
+        produto_id,
+        COALESCE(SUM(quantidade), 0) AS quantidade_reservada
+      FROM reservas_venda
+      WHERE status = 'reservado'
+      GROUP BY venda_id, produto_id
+    ) rv
+      ON rv.venda_id = iv.venda_id
+     AND rv.produto_id = iv.produto_id
+    WHERE iv.produto_id = $1
+      AND v.status IN ('aberto', 'parcial')
+      AND GREATEST(iv.quantidade - COALESCE(rv.quantidade_reservada, 0), 0) > 0
+    ORDER BY v.criado_em ASC, iv.venda_id ASC
+    `,
+      [produto_id],
+    );
+
+    return rows;
   },
 };

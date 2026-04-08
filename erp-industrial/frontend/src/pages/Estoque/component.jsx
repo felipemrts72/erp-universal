@@ -305,34 +305,6 @@ export default function Estoque() {
         />
       </Card>
 
-      <Card title='Vendas em processo de compra'>
-        <DataTable
-          columns={[
-            { key: 'venda_id', label: 'Venda' },
-            { key: 'cliente_nome', label: 'Cliente' },
-            { key: 'produto_nome', label: 'Produto' },
-            { key: 'quantidade_vendida', label: 'Qtd. vendida' },
-            { key: 'quantidade_reservada', label: 'Qtd. reservada' },
-            { key: 'faltante', label: 'Faltante' },
-            {
-              key: 'acoes',
-              label: 'Ações',
-              render: (_, row) => (
-                <button
-                  className='btn btn--primary'
-                  type='button'
-                  onClick={() => abrirModalVinculo(row)}
-                >
-                  Vincular entrada
-                </button>
-              ),
-            },
-          ]}
-          rows={pendenciasCompra}
-          emptyText='Nenhuma venda pendente de compra no momento.'
-        />
-      </Card>
-
       <Card title='Filtro de movimentos'>
         <div className='form-grid'>
           <label className='form-control'>

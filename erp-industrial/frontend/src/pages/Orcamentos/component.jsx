@@ -615,7 +615,6 @@ export default function Orcamentos() {
           )}
           <div className='orcamentos-page__top'>
             <div className='orcamentos-page__cliente'>
-              <label className='orcamentos-page__label'>Nome do cliente</label>
               <div className='orcamentos-page__cliente'>
                 <BuscaManual
                   endpoint='/clientes/busca'

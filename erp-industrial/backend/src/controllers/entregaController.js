@@ -5,6 +5,10 @@ export const entregaController = {
     const result = await entregaService.listarPendentes();
     res.json(result);
   },
+  async saidasHoje(req, res) {
+    const result = await entregaService.listarSaidasHoje();
+    res.json(result);
+  },
 
   async listar(req, res) {
     const result = await entregaService.listarTodas();
@@ -13,9 +17,12 @@ export const entregaController = {
 
   async entregar(req, res) {
     const { id } = req.params;
-    const { usuario_id, tipo } = req.body;
+    const usuario_id = req.user?.id || null;
 
-    const result = await entregaService.entregar(Number(id), usuario_id, tipo);
+    const result = await entregaService.entregar(Number(id), {
+      ...req.body,
+      usuario_id,
+    });
 
     res.json(result);
   },

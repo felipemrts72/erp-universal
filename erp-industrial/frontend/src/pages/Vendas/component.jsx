@@ -25,6 +25,10 @@ const initialCliente = {
   bairro: '',
   cidade: '',
   cep: '',
+  tipo_entrega: 'retirada',
+  transportadora_id: null,
+  transportadora_nome_manual: '',
+  observacoes_entrega: '',
 };
 
 function toNumber(value) {
@@ -82,6 +86,7 @@ export default function Vendas() {
   const [clienteForm, setClienteForm] = useState(initialCliente);
   const [itemForm, setItemForm] = useState(initialItem);
   const [itens, setItens] = useState([]);
+  const [transportadoras, setTransportadoras] = useState([]);
 
   const load = async () => {
     try {
@@ -98,8 +103,19 @@ export default function Vendas() {
     }
   };
 
+  const loadTransportadoras = async () => {
+    try {
+      const { data } = await api.get('/transportadoras?somenteAtivas=true');
+      setTransportadoras(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      setTransportadoras([]);
+    }
+  };
+
   useEffect(() => {
     load();
+    loadTransportadoras();
   }, []);
 
   useEffect(() => {
@@ -225,6 +241,23 @@ export default function Vendas() {
       return;
     }
 
+    if (!clienteForm.tipo_entrega) {
+      showToast('Informe o tipo de entrega', 'error');
+      return;
+    }
+
+    if (
+      clienteForm.tipo_entrega === 'transportadora' &&
+      !clienteForm.transportadora_id &&
+      !clienteForm.transportadora_nome_manual.trim()
+    ) {
+      showToast(
+        'Selecione uma transportadora ou informe uma manualmente',
+        'error',
+      );
+      return;
+    }
+
     if (!itens.length) {
       showToast('Adicione pelo menos um item', 'error');
       return;
@@ -241,6 +274,16 @@ export default function Vendas() {
       bairro: clienteForm.bairro,
       cidade: clienteForm.cidade,
       cep: clienteForm.cep,
+      tipo_entrega: clienteForm.tipo_entrega || 'retirada',
+      transportadora_id:
+        clienteForm.tipo_entrega === 'transportadora'
+          ? clienteForm.transportadora_id || null
+          : null,
+      transportadora_nome_manual:
+        clienteForm.tipo_entrega === 'transportadora'
+          ? clienteForm.transportadora_nome_manual || ''
+          : '',
+      observacoes_entrega: clienteForm.observacoes_entrega || '',
       itens: itens.map((item) => ({
         produto_id: item.produto_id,
         quantidade: toNumber(item.quantidade),
@@ -368,6 +411,27 @@ export default function Vendas() {
                       <strong>{formatMoney(valorTotal)}</strong>
                     </div>
                   </div>
+                  <div className='vendas-page__meta'>
+                    <span className='vendas-page__meta-label'>Entrega</span>
+                    <strong>
+                      {venda.tipo_entrega === 'transportadora'
+                        ? 'Transportadora'
+                        : 'Retirada'}
+                    </strong>
+                  </div>
+
+                  {venda.tipo_entrega === 'transportadora' && (
+                    <div className='vendas-page__meta'>
+                      <span className='vendas-page__meta-label'>
+                        Transportadora
+                      </span>
+                      <strong>
+                        {venda.transportadora_nome ||
+                          venda.transportadora_nome_manual ||
+                          '-'}
+                      </strong>
+                    </div>
+                  )}
 
                   <div className='vendas-page__sale-items'>
                     {itensVenda.map((item) => (
@@ -512,6 +576,85 @@ export default function Vendas() {
                   onChange={(e) => handleClienteChange('cep', e.target.value)}
                 />
               </label>
+            </div>
+
+            <div className='vendas-page__logistica'>
+              <h3 className='vendas-page__section-title'>
+                Logística da entrega
+              </h3>
+
+              <div className='vendas-page__form-grid'>
+                <label className='vendas-page__field'>
+                  <span>Tipo de entrega</span>
+                  <select
+                    value={clienteForm.tipo_entrega}
+                    onChange={(e) => {
+                      handleClienteChange('tipo_entrega', e.target.value);
+
+                      if (e.target.value === 'retirada') {
+                        handleClienteChange('transportadora_id', null);
+                        handleClienteChange('transportadora_nome_manual', '');
+                      }
+                    }}
+                  >
+                    <option value='retirada'>Retirada</option>
+                    <option value='transportadora'>Transportadora</option>
+                  </select>
+                </label>
+
+                {clienteForm.tipo_entrega === 'transportadora' && (
+                  <>
+                    <label className='vendas-page__field'>
+                      <span>Transportadora cadastrada</span>
+                      <select
+                        value={clienteForm.transportadora_id || ''}
+                        onChange={(e) =>
+                          handleClienteChange(
+                            'transportadora_id',
+                            e.target.value ? Number(e.target.value) : null,
+                          )
+                        }
+                      >
+                        <option value=''>Selecione</option>
+                        {transportadoras.map((transportadora) => (
+                          <option
+                            key={transportadora.id}
+                            value={transportadora.id}
+                          >
+                            {transportadora.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className='vendas-page__field vendas-page__field--full'>
+                      <span>Ou informe transportadora manualmente</span>
+                      <input
+                        value={clienteForm.transportadora_nome_manual}
+                        onChange={(e) =>
+                          handleClienteChange(
+                            'transportadora_nome_manual',
+                            e.target.value,
+                          )
+                        }
+                        placeholder='Ex.: Transportadora XPTO'
+                      />
+                    </label>
+                  </>
+                )}
+
+                <label className='vendas-page__field vendas-page__field--full'>
+                  <span>Observações da entrega</span>
+                  <textarea
+                    value={clienteForm.observacoes_entrega}
+                    onChange={(e) =>
+                      handleClienteChange('observacoes_entrega', e.target.value)
+                    }
+                    placeholder='Ex.: entregar no período da tarde, ligar antes, etc.'
+                    rows={3}
+                  />
+                </label>
+              </div>
             </div>
 
             <div className='vendas-page__item-section'>

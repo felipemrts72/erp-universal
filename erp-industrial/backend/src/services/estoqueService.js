@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { estoqueRepository } from '../repositories/estoqueRepository.js';
 import { producaoRepository } from '../repositories/producaoRepository.js';
 import { produtoRepository } from '../repositories/produtoRepository.js';
+import { reservaVendaService } from './reservaVendaService.js';
 import { httpError } from '../utils/httpError.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -237,6 +238,9 @@ export const estoqueService = {
         },
         client,
       );
+
+      // 7. reservar automaticamente para vendas pendentes
+      await reservaVendaService.reservarEntradasPendentes(produtoId, client);
 
       await client.query('COMMIT');
 

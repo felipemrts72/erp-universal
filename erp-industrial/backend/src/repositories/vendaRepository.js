@@ -8,10 +8,26 @@ export const vendaRepository = {
       await client.query('BEGIN');
 
       const venda = await client.query(
-        `INSERT INTO vendas (orcamento_id, cliente_id, cliente_nome)
-         VALUES ($1,$2,$3)
+        `INSERT INTO vendas (
+          orcamento_id, 
+          cliente_id, 
+          cliente_nome,
+          tipo_entrega,
+          transportadora_id,
+          transportadora_nome_manual,
+          observacoes_entrega
+        )
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
          RETURNING *`,
-        [orcamento.id, orcamento.cliente_id || null, orcamento.cliente_nome],
+        [
+          orcamento.id,
+          orcamento.cliente_id || null,
+          orcamento.cliente_nome,
+          orcamento.tipo_entrega || 'retirada',
+          orcamento.transportadora_id || null,
+          orcamento.transportadora_nome_manual || null,
+          orcamento.observacoes_entrega || null,
+        ],
       );
 
       for (const item of itens) {
@@ -36,17 +52,39 @@ export const vendaRepository = {
       client.release();
     }
   },
-  async createDireta({ clienteNome, cliente_id, itens }) {
+  async createDireta({
+    clienteNome,
+    cliente_id,
+    tipo_entrega,
+    transportadora_id,
+    transportadora_nome_manual,
+    observacoes_entrega,
+    itens,
+  }) {
     const client = await pool.connect();
 
     try {
       await client.query('BEGIN');
 
       const venda = await client.query(
-        `INSERT INTO vendas (cliente_id, cliente_nome)
-       VALUES ($1,$2)
-       RETURNING *`,
-        [cliente_id || null, clienteNome],
+        `INSERT INTO vendas (
+        cliente_id,
+        cliente_nome,
+        tipo_entrega,
+        transportadora_id,
+        transportadora_nome_manual,
+        observacoes_entrega
+      )
+      VALUES ($1,$2,$3,$4,$5,$6)
+      RETURNING *`,
+        [
+          cliente_id || null,
+          clienteNome,
+          tipo_entrega || 'retirada',
+          transportadora_id || null,
+          transportadora_nome_manual || null,
+          observacoes_entrega || null,
+        ],
       );
 
       for (const item of itens) {
@@ -84,6 +122,10 @@ export const vendaRepository = {
       v.cliente_nome,
       v.status,
       v.criado_em,
+      v.tipo_entrega,
+      v.transportadora_id,
+      v.transportadora_nome_manual,
+      v.observacoes_entrega,
 
       COALESCE(
         SUM(iv.quantidade * iv.preco_unitario),
@@ -141,6 +183,20 @@ export const vendaRepository = {
     LIMIT 1
     `,
       [orcamentoId],
+    );
+
+    return rows[0] || null;
+  },
+
+  async updateStatus(id, status) {
+    const { rows } = await pool.query(
+      `
+    UPDATE vendas
+    SET status = $2
+    WHERE id = $1
+    RETURNING *
+    `,
+      [id, status],
     );
 
     return rows[0] || null;

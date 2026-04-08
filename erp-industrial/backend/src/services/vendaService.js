@@ -4,6 +4,7 @@ import { produtoRepository } from '../repositories/produtoRepository.js';
 import { estoqueRepository } from '../repositories/estoqueRepository.js';
 import { producaoRepository } from '../repositories/producaoRepository.js';
 import { reservaVendaRepository } from '../repositories/reservaVendaRepository.js';
+import { entregaRepository } from '../repositories/entregaRepository.js';
 import { httpError } from '../utils/httpError.js';
 
 function toNumber(value) {
@@ -41,6 +42,16 @@ async function reservarDisponivelParaVenda(vendaId, item, produto) {
   };
 }
 
+function calcularStatusVendaPorItens(itens) {
+  const temFabricacao = itens.some((item) => item.precisa_fabricar);
+  const temCompra = itens.some((item) => item.precisa_comprar);
+
+  if (temFabricacao && temCompra) return 'producao_e_compra';
+  if (temFabricacao) return 'em_fabricacao';
+  if (temCompra) return 'processo_de_compra';
+  return 'aguardando_retirada';
+}
+
 export const vendaService = {
   async createFromOrcamento(orcamentoId) {
     const orcamento = await orcamentoRepository.getWithItens(orcamentoId);
@@ -51,7 +62,14 @@ export const vendaService = {
     }
 
     const venda = await vendaRepository.createFromOrcamento(
-      orcamento,
+      {
+        ...orcamento,
+        tipo_entrega: orcamento.tipo_entrega || 'retirada',
+        transportadora_id: orcamento.transportadora_id || null,
+        transportadora_nome_manual:
+          orcamento.transportadora_nome_manual || null,
+        observacoes_entrega: orcamento.observacoes_entrega || null,
+      },
       orcamento.itens,
     );
 
@@ -86,6 +104,16 @@ export const vendaService = {
           });
         }
       }
+      await entregaRepository.criar({
+        ordem_producao_id: null,
+        venda_id: venda.id,
+        produto_id: item.produto_id,
+        quantidade: Number(item.quantidade),
+        criado_por: null,
+        tipo: venda.tipo_entrega || 'retirada',
+        transportadora_id: venda.transportadora_id || null,
+        transportadora_nome_manual: venda.transportadora_nome_manual || null,
+      });
     }
 
     return venda;
@@ -113,6 +141,10 @@ export const vendaService = {
     const venda = await vendaRepository.createDireta({
       clienteNome: payload.clienteNome,
       cliente_id: payload.cliente_id || null,
+      tipo_entrega: payload.tipo_entrega || 'retirada',
+      transportadora_id: payload.transportadora_id || null,
+      transportadora_nome_manual: payload.transportadora_nome_manual || null,
+      observacoes_entrega: payload.observacoes_entrega || null,
       itens: payload.itens,
     });
 
@@ -147,6 +179,16 @@ export const vendaService = {
           });
         }
       }
+      await entregaRepository.criar({
+        ordem_producao_id: null,
+        venda_id: venda.id,
+        produto_id: item.produto_id,
+        quantidade: Number(item.quantidade),
+        criado_por: null,
+        tipo: venda.tipo_entrega || 'retirada',
+        transportadora_id: venda.transportadora_id || null,
+        transportadora_nome_manual: venda.transportadora_nome_manual || null,
+      });
     }
 
     return venda;
