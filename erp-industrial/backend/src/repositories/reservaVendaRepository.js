@@ -134,4 +134,33 @@ export const reservaVendaRepository = {
 
     return rows;
   },
+  async getReservadoAtivoPorProduto(produto_id, client = pool) {
+    const { rows } = await client.query(
+      `
+    SELECT COALESCE(SUM(rv.quantidade), 0) AS total_reservado
+    FROM reservas_venda rv
+    JOIN vendas v ON v.id = rv.venda_id
+    WHERE rv.produto_id = $1
+      AND rv.status = 'reservado'
+      AND v.status IN ('aberto', 'parcial')
+    `,
+      [produto_id],
+    );
+
+    return Number(rows[0]?.total_reservado || 0);
+  },
+  async marcarAtendidoPorVenda(venda_id, client = pool) {
+    const { rows } = await client.query(
+      `
+    UPDATE reservas_venda
+    SET status = 'atendido'
+    WHERE venda_id = $1
+      AND status = 'reservado'
+    RETURNING *
+    `,
+      [venda_id],
+    );
+
+    return rows;
+  },
 };

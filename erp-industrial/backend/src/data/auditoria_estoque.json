@@ -318,5 +318,55 @@
     "custo_unitario": 110,
     "fornecedor": "TORNEADORA UNIVERSAL",
     "usuario_id": 1
+  },
+  {
+    "id": 33,
+    "criado_em": "2026-04-08T23:48:57.608Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 1,
+    "quantidade": 10000,
+    "custo_unitario": 4.5,
+    "fornecedor": "Jessé",
+    "usuario_id": 1
+  },
+  {
+    "id": 34,
+    "criado_em": "2026-04-08T23:53:32.923Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 5,
+    "quantidade": 2,
+    "custo_unitario": 2000,
+    "fornecedor": "Torneadora Universal",
+    "usuario_id": 1
+  },
+  {
+    "id": 35,
+    "criado_em": "2026-04-08T23:55:58.161Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 4,
+    "quantidade": 3000,
+    "custo_unitario": 6.5,
+    "fornecedor": "JADE ENGENHARIA",
+    "usuario_id": 1
+  },
+  {
+    "id": 36,
+    "criado_em": "2026-04-09T00:02:54.277Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 6,
+    "quantidade": 200,
+    "custo_unitario": 2,
+    "fornecedor": "COMAGRAM",
+    "usuario_id": 1
+  },
+  {
+    "id": 37,
+    "criado_em": "2026-04-10T19:36:54.422Z",
+    "tipo": "entrada_estoque",
+    "produto_id": 3,
+    "quantidade": 25,
+    "custo_unitario": 150,
+    "fornecedor": "Rolmaster",
+    "usuario_id": 1
   }
 ]

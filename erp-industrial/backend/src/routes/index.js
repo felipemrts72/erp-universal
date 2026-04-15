@@ -95,6 +95,10 @@ router.patch(
   '/orcamentos/:id/status',
   asyncHandler(orcamentoController.updateStatus),
 );
+router.post(
+  '/orcamentos/:id/aprovar',
+  asyncHandler(orcamentoController.aprovar),
+);
 
 // VENDAS
 router.get('/vendas', asyncHandler(vendaController.list));

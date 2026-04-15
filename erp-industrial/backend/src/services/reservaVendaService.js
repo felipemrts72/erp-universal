@@ -11,10 +11,11 @@ export const reservaVendaService = {
       produto_id,
       client,
     );
-    const reservadoTotal = await reservaVendaRepository.getReservadoPorProduto(
-      produto_id,
-      client,
-    );
+    const reservadoTotal =
+      await reservaVendaRepository.getReservadoAtivoPorProduto(
+        produto_id,
+        client,
+      );
 
     let disponivel = Math.max(Number(saldoFisico) - Number(reservadoTotal), 0);
 

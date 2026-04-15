@@ -1,25 +1,43 @@
 import { pool } from '../database/pool.js';
 
+function buildSearchTerm(q) {
+  return `%${String(q || '').trim()}%`;
+}
+
 export const clienteRepository = {
   async create(payload) {
     const {
       nome,
+      nome_fantasia,
       cpf_cnpj,
       telefone,
       email,
-      rua,
+      endereco,
       numero,
       bairro,
       cidade,
       cep,
+      observacoes = null,
     } = payload;
 
     const { rows } = await pool.query(
       `INSERT INTO clientes
-       (nome, cpf_cnpj, telefone, email, rua, numero, bairro, cidade, cep)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       (nome, nome_fantasia,cpf_cnpj, telefone, email, endereco, numero, bairro, cidade, cep, observacoes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        RETURNING *`,
-      [nome, cpf_cnpj, telefone, email, rua, numero, bairro, cidade, cep],
+      [
+        nome,
+        nome_fantasia || null,
+        cpf_cnpj || null,
+        telefone || null,
+        email || null,
+        endereco || null,
+        numero || null,
+        bairro || null,
+        cidade || null,
+        cep || null,
+        observacoes,
+      ],
     );
 
     return rows[0];
@@ -37,30 +55,47 @@ export const clienteRepository = {
   async update(id, payload) {
     const {
       nome,
+      nome_fantasia,
       cpf_cnpj,
       telefone,
       email,
-      rua,
+      endereco,
       numero,
       bairro,
       cidade,
       cep,
+      observacoes,
     } = payload;
 
     const { rows } = await pool.query(
       `UPDATE clientes
-       SET nome = COALESCE($1, nome),
-           cpf_cnpj = COALESCE($2, cpf_cnpj),
-           telefone = COALESCE($3, telefone),
-           email = COALESCE($4, email),
-           rua = COALESCE($5, rua),
-           numero = COALESCE($6, numero),
-           bairro = COALESCE($7, bairro),
-           cidade = COALESCE($8, cidade),
-           cep = COALESCE($9, cep)
-       WHERE id = $10
+        SET nome = COALESCE($1, nome),
+            nome_fantasia = COALESCE($2, nome_fantasia),
+            cpf_cnpj = COALESCE($3, cpf_cnpj),
+            telefone = COALESCE($4, telefone),
+            email = COALESCE($5, email),
+            endereco = COALESCE($6, endereco),
+            numero = COALESCE($7, numero),
+            bairro = COALESCE($8, bairro),
+            cidade = COALESCE($9, cidade),
+            cep = COALESCE($10, cep),
+            observacoes = COALESCE($11, observacoes)
+        WHERE id = $12
        RETURNING *`,
-      [nome, cpf_cnpj, telefone, email, rua, numero, bairro, cidade, cep, id],
+      [
+        nome,
+        nome_fantasia,
+        cpf_cnpj,
+        telefone,
+        email,
+        endereco,
+        numero,
+        bairro,
+        cidade,
+        cep,
+        observacoes,
+        id,
+      ],
     );
 
     return rows[0];
@@ -79,19 +114,24 @@ export const clienteRepository = {
   },
 
   async buscar(q) {
+    const termo = buildSearchTerm(q);
+
     const { rows } = await pool.query(
-      `SELECT id, nome, cpf_cnpj, telefone, cidade
-       FROM clientes
-       WHERE status = 'ativo'
-         AND (
-           nome ILIKE $1 OR
-           cpf_cnpj ILIKE $1 OR
-           telefone ILIKE $1 OR
-           cidade ILIKE $1
-         )
-       ORDER BY nome
-       LIMIT 20`,
-      [`%${q}%`],
+      `
+    SELECT id, nome, nome_fantasia, cpf_cnpj, telefone, email, cidade
+    FROM clientes
+    WHERE status = 'ativo'
+      AND (
+        unaccent(lower(nome)) LIKE unaccent(lower($1)) OR
+        unaccent(lower(nome_fantasia)) LIKE unaccent(lower($1)) OR
+        cpf_cnpj ILIKE $1 OR
+        telefone ILIKE $1 OR
+        unaccent(lower(cidade)) LIKE unaccent(lower($1))
+      )
+    ORDER BY nome
+    LIMIT 20
+    `,
+      [termo],
     );
 
     return rows;

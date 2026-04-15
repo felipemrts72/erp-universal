@@ -3,7 +3,7 @@ import api from '../../services/api';
 import Card from '../../components/Card';
 import BuscaManual from '../../components/BuscaManual';
 import LoadingModal from '../../components/LoadingModal';
-import Toast from '../../components/Toast';
+import { useToast } from '../../contexts/ToastContext';
 
 import './style.css';
 
@@ -17,6 +17,7 @@ const initialItem = {
 const initialCliente = {
   clienteNome: '',
   cliente_id: null,
+  nome_completo: '',
   telefone: '',
   email: '',
   cpf_cnpj: '',
@@ -29,6 +30,7 @@ const initialCliente = {
   transportadora_id: null,
   transportadora_nome_manual: '',
   observacoes_entrega: '',
+  prazo_entrega: '',
 };
 
 function toNumber(value) {
@@ -71,22 +73,23 @@ function getStatusClass(status) {
 }
 
 export default function Vendas() {
+  const { showToast } = useToast();
+
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  const [toast, setToast] = useState({
-    open: false,
-    message: '',
-    type: 'error',
-  });
 
   const [modalOpen, setModalOpen] = useState(false);
 
   const [clienteForm, setClienteForm] = useState(initialCliente);
   const [itemForm, setItemForm] = useState(initialItem);
   const [itens, setItens] = useState([]);
+
   const [transportadoras, setTransportadoras] = useState([]);
+  const [usarTransportadoraManual, setUsarTransportadoraManual] =
+    useState(false);
+
+  const clienteNaoCadastrado = !clienteForm.cliente_id;
 
   const load = async () => {
     try {
@@ -110,6 +113,7 @@ export default function Vendas() {
     } catch (err) {
       console.error(err);
       setTransportadoras([]);
+      showToast('Erro ao carregar transportadoras', 'error');
     }
   };
 
@@ -117,16 +121,6 @@ export default function Vendas() {
     load();
     loadTransportadoras();
   }, []);
-
-  useEffect(() => {
-    if (!toast.open) return;
-
-    const timer = setTimeout(() => {
-      closeToast();
-    }, 3500);
-
-    return () => clearTimeout(timer);
-  }, [toast.open]);
 
   const totais = useMemo(() => {
     const bruto = itens.reduce((acc, item) => {
@@ -143,12 +137,32 @@ export default function Vendas() {
     setClienteForm(initialCliente);
     setItemForm(initialItem);
     setItens([]);
+    setUsarTransportadoraManual(false);
   };
 
   const handleClienteChange = (field, value) => {
     setClienteForm((prev) => ({
       ...prev,
       [field]: value,
+    }));
+  };
+
+  const handleClienteSelect = (id, item) => {
+    if (!item) return;
+
+    setClienteForm((prev) => ({
+      ...prev,
+      cliente_id: id || null,
+      clienteNome: item?.nome_fantasia || item?.nome || '',
+      nome_completo: item?.nome || '',
+      telefone: item?.telefone || '',
+      email: item?.email || '',
+      cpf_cnpj: item?.cpf_cnpj || '',
+      endereco: item?.endereco || '',
+      numero: item?.numero || '',
+      bairro: item?.bairro || '',
+      cidade: item?.cidade || '',
+      cep: item?.cep || '',
     }));
   };
 
@@ -201,44 +215,51 @@ export default function Vendas() {
       return;
     }
 
-    if (!clienteForm.telefone.trim()) {
-      showToast('Informe o telefone', 'error');
-      return;
-    }
+    if (clienteNaoCadastrado) {
+      if (!clienteForm.nome_completo.trim()) {
+        showToast('Informe o nome completo ou razão social', 'error');
+        return;
+      }
 
-    if (!clienteForm.email.trim()) {
-      showToast('Informe o e-mail', 'error');
-      return;
-    }
+      if (!clienteForm.telefone.trim()) {
+        showToast('Informe o telefone', 'error');
+        return;
+      }
 
-    if (!clienteForm.cpf_cnpj.trim()) {
-      showToast('Informe o CPF/CNPJ', 'error');
-      return;
-    }
+      if (!clienteForm.email.trim()) {
+        showToast('Informe o e-mail', 'error');
+        return;
+      }
 
-    if (!clienteForm.endereco.trim()) {
-      showToast('Informe o endereço', 'error');
-      return;
-    }
+      if (!clienteForm.cpf_cnpj.trim()) {
+        showToast('Informe o CPF/CNPJ', 'error');
+        return;
+      }
 
-    if (!clienteForm.numero.trim()) {
-      showToast('Informe o número', 'error');
-      return;
-    }
+      if (!clienteForm.endereco.trim()) {
+        showToast('Informe o endereço', 'error');
+        return;
+      }
 
-    if (!clienteForm.bairro.trim()) {
-      showToast('Informe o bairro', 'error');
-      return;
-    }
+      if (!clienteForm.numero.trim()) {
+        showToast('Informe o número', 'error');
+        return;
+      }
 
-    if (!clienteForm.cidade.trim()) {
-      showToast('Informe a cidade', 'error');
-      return;
-    }
+      if (!clienteForm.bairro.trim()) {
+        showToast('Informe o bairro', 'error');
+        return;
+      }
 
-    if (!clienteForm.cep.trim()) {
-      showToast('Informe o CEP', 'error');
-      return;
+      if (!clienteForm.cidade.trim()) {
+        showToast('Informe a cidade', 'error');
+        return;
+      }
+
+      if (!clienteForm.cep.trim()) {
+        showToast('Informe o CEP', 'error');
+        return;
+      }
     }
 
     if (!clienteForm.tipo_entrega) {
@@ -266,6 +287,7 @@ export default function Vendas() {
     const payload = {
       clienteNome: clienteForm.clienteNome,
       cliente_id: clienteForm.cliente_id || null,
+      nome_completo: clienteForm.nome_completo,
       telefone: clienteForm.telefone,
       email: clienteForm.email,
       cpf_cnpj: clienteForm.cpf_cnpj,
@@ -284,6 +306,7 @@ export default function Vendas() {
           ? clienteForm.transportadora_nome_manual || ''
           : '',
       observacoes_entrega: clienteForm.observacoes_entrega || '',
+      prazo_entrega: clienteForm.prazo_entrega || '',
       itens: itens.map((item) => ({
         produto_id: item.produto_id,
         quantidade: toNumber(item.quantidade),
@@ -305,10 +328,10 @@ export default function Vendas() {
       const errorData = err?.response?.data;
 
       if (errorData?.code === 'ESTOQUE_INSUFICIENTE') {
-        const itens = errorData?.itens_sem_estoque || [];
+        const itensSemEstoque = errorData?.itens_sem_estoque || [];
 
-        const mensagemDetalhada = itens.length
-          ? itens
+        const mensagemDetalhada = itensSemEstoque.length
+          ? itensSemEstoque
               .map(
                 (item) =>
                   `${item.produto_nome}: saldo ${item.saldo_atual}, faltam ${item.faltante}`,
@@ -330,29 +353,10 @@ export default function Vendas() {
     }
   };
 
-  const showToast = (message, type = 'error') => {
-    setToast({
-      open: true,
-      message,
-      type,
-    });
-  };
-
-  const closeToast = () => {
-    setToast((prev) => ({
-      ...prev,
-      open: false,
-    }));
-  };
   return (
     <>
-      <Toast
-        open={toast.open}
-        message={toast.message}
-        type={toast.type}
-        onClose={closeToast}
-      />
       {(loading || saving) && <LoadingModal />}
+
       <Card
         title='Vendas'
         subtitle='Acompanhe somente o que ainda está em aberto.'
@@ -362,13 +366,14 @@ export default function Vendas() {
             className='btn btn--primary vendas-page__new-button'
             type='button'
             onClick={() => {
-              closeToast();
+              resetFormulario();
               setModalOpen(true);
             }}
           >
             Realizar venda
           </button>
         </div>
+
         <div className='vendas-page__cards'>
           {items.length ? (
             items.map((venda) => {
@@ -411,6 +416,7 @@ export default function Vendas() {
                       <strong>{formatMoney(valorTotal)}</strong>
                     </div>
                   </div>
+
                   <div className='vendas-page__meta'>
                     <span className='vendas-page__meta-label'>Entrega</span>
                     <strong>
@@ -430,6 +436,15 @@ export default function Vendas() {
                           venda.transportadora_nome_manual ||
                           '-'}
                       </strong>
+                    </div>
+                  )}
+
+                  {!!venda.prazo_entrega && (
+                    <div className='vendas-page__meta'>
+                      <span className='vendas-page__meta-label'>
+                        Prazo de entrega
+                      </span>
+                      <strong>{venda.prazo_entrega}</strong>
                     </div>
                   )}
 
@@ -485,98 +500,124 @@ export default function Vendas() {
                   endpoint='/clientes/busca'
                   label='Cliente'
                   placeholder='Digite 3 letras, Enter ou clique na lupa'
-                  onSelect={(id, item) => {
-                    handleClienteChange('cliente_id', id || null);
-                    handleClienteChange('clienteNome', item?.nome || '');
-                    handleClienteChange('telefone', item?.telefone || '');
-                    handleClienteChange('email', item?.email || '');
-                    handleClienteChange('cpf_cnpj', item?.cpf_cnpj || '');
-                    handleClienteChange('endereco', item?.endereco || '');
-                  }}
+                  onSelect={handleClienteSelect}
                   value={clienteForm.clienteNome}
                   onChangeValue={(value) => {
-                    handleClienteChange('clienteNome', value);
-                    handleClienteChange('cliente_id', null);
+                    setClienteForm((prev) => ({
+                      ...prev,
+                      clienteNome: value,
+                      cliente_id: null,
+                      nome_completo: '',
+                      telefone: '',
+                      email: '',
+                      cpf_cnpj: '',
+                      endereco: '',
+                      numero: '',
+                      bairro: '',
+                      cidade: '',
+                      cep: '',
+                    }));
                   }}
                 />
               </div>
-
-              <label className='vendas-page__field'>
-                <span>Telefone</span>
-                <input
-                  value={clienteForm.telefone}
-                  onChange={(e) =>
-                    handleClienteChange('telefone', e.target.value)
-                  }
-                />
-              </label>
-
-              <label className='vendas-page__field'>
-                <span>E-mail</span>
-                <input
-                  value={clienteForm.email}
-                  onChange={(e) => handleClienteChange('email', e.target.value)}
-                />
-              </label>
-
-              <label className='vendas-page__field'>
-                <span>CPF/CNPJ</span>
-                <input
-                  value={clienteForm.cpf_cnpj}
-                  onChange={(e) =>
-                    handleClienteChange('cpf_cnpj', e.target.value)
-                  }
-                />
-              </label>
-
-              <label className='vendas-page__field vendas-page__field--full'>
-                <span>Endereço</span>
-                <input
-                  value={clienteForm.endereco}
-                  onChange={(e) =>
-                    handleClienteChange('endereco', e.target.value)
-                  }
-                />
-              </label>
-
-              <label className='vendas-page__field'>
-                <span>Número</span>
-                <input
-                  value={clienteForm.numero}
-                  onChange={(e) =>
-                    handleClienteChange('numero', e.target.value)
-                  }
-                />
-              </label>
-
-              <label className='vendas-page__field'>
-                <span>Bairro</span>
-                <input
-                  value={clienteForm.bairro}
-                  onChange={(e) =>
-                    handleClienteChange('bairro', e.target.value)
-                  }
-                />
-              </label>
-
-              <label className='vendas-page__field'>
-                <span>Cidade</span>
-                <input
-                  value={clienteForm.cidade}
-                  onChange={(e) =>
-                    handleClienteChange('cidade', e.target.value)
-                  }
-                />
-              </label>
-
-              <label className='vendas-page__field'>
-                <span>CEP</span>
-                <input
-                  value={clienteForm.cep}
-                  onChange={(e) => handleClienteChange('cep', e.target.value)}
-                />
-              </label>
             </div>
+
+            {clienteNaoCadastrado ? (
+              <div className='vendas-page__form-grid'>
+                <label className='vendas-page__field vendas-page__field--full'>
+                  <span>Nome completo / Razão social</span>
+                  <input
+                    value={clienteForm.nome_completo}
+                    onChange={(e) =>
+                      handleClienteChange('nome_completo', e.target.value)
+                    }
+                    placeholder='Nome oficial do cliente para cadastro e documentos'
+                  />
+                </label>
+                <label className='vendas-page__field'>
+                  <span>Telefone</span>
+                  <input
+                    value={clienteForm.telefone}
+                    onChange={(e) =>
+                      handleClienteChange('telefone', e.target.value)
+                    }
+                  />
+                </label>
+
+                <label className='vendas-page__field'>
+                  <span>E-mail</span>
+                  <input
+                    value={clienteForm.email}
+                    onChange={(e) =>
+                      handleClienteChange('email', e.target.value)
+                    }
+                  />
+                </label>
+
+                <label className='vendas-page__field'>
+                  <span>CPF/CNPJ</span>
+                  <input
+                    value={clienteForm.cpf_cnpj}
+                    onChange={(e) =>
+                      handleClienteChange('cpf_cnpj', e.target.value)
+                    }
+                  />
+                </label>
+
+                <label className='vendas-page__field vendas-page__field--full'>
+                  <span>Endereço</span>
+                  <input
+                    value={clienteForm.endereco}
+                    onChange={(e) =>
+                      handleClienteChange('endereco', e.target.value)
+                    }
+                  />
+                </label>
+
+                <label className='vendas-page__field'>
+                  <span>Número</span>
+                  <input
+                    value={clienteForm.numero}
+                    onChange={(e) =>
+                      handleClienteChange('numero', e.target.value)
+                    }
+                  />
+                </label>
+
+                <label className='vendas-page__field'>
+                  <span>Bairro</span>
+                  <input
+                    value={clienteForm.bairro}
+                    onChange={(e) =>
+                      handleClienteChange('bairro', e.target.value)
+                    }
+                  />
+                </label>
+
+                <label className='vendas-page__field'>
+                  <span>Cidade</span>
+                  <input
+                    value={clienteForm.cidade}
+                    onChange={(e) =>
+                      handleClienteChange('cidade', e.target.value)
+                    }
+                  />
+                </label>
+
+                <label className='vendas-page__field'>
+                  <span>CEP</span>
+                  <input
+                    value={clienteForm.cep}
+                    onChange={(e) => handleClienteChange('cep', e.target.value)}
+                  />
+                </label>
+              </div>
+            ) : (
+              <div className='vendas-page__cliente-badge'>
+                Cliente cadastrado encontrado. Os dados de cadastro já serão
+                usados.
+              </div>
+            )}
 
             <div className='vendas-page__logistica'>
               <h3 className='vendas-page__section-title'>
@@ -589,12 +630,22 @@ export default function Vendas() {
                   <select
                     value={clienteForm.tipo_entrega}
                     onChange={(e) => {
-                      handleClienteChange('tipo_entrega', e.target.value);
+                      const value = e.target.value;
 
-                      if (e.target.value === 'retirada') {
-                        handleClienteChange('transportadora_id', null);
-                        handleClienteChange('transportadora_nome_manual', '');
+                      if (value === 'retirada') {
+                        setUsarTransportadoraManual(false);
                       }
+
+                      setClienteForm((prev) => ({
+                        ...prev,
+                        tipo_entrega: value,
+                        transportadora_id:
+                          value === 'retirada' ? null : prev.transportadora_id,
+                        transportadora_nome_manual:
+                          value === 'retirada'
+                            ? ''
+                            : prev.transportadora_nome_manual,
+                      }));
                     }}
                   >
                     <option value='retirada'>Retirada</option>
@@ -602,20 +653,50 @@ export default function Vendas() {
                   </select>
                 </label>
 
+                <label className='vendas-page__field'>
+                  <span>Prazo de entrega</span>
+                  <input
+                    type='date'
+                    value={clienteForm.prazo_entrega || ''}
+                    onChange={(e) =>
+                      handleClienteChange('prazo_entrega', e.target.value)
+                    }
+                  />
+                </label>
+
                 {clienteForm.tipo_entrega === 'transportadora' && (
                   <>
                     <label className='vendas-page__field'>
-                      <span>Transportadora cadastrada</span>
+                      <span>Transportadora</span>
                       <select
-                        value={clienteForm.transportadora_id || ''}
-                        onChange={(e) =>
-                          handleClienteChange(
-                            'transportadora_id',
-                            e.target.value ? Number(e.target.value) : null,
-                          )
+                        value={
+                          usarTransportadoraManual
+                            ? 'outras'
+                            : clienteForm.transportadora_id || ''
                         }
+                        onChange={(e) => {
+                          const value = e.target.value;
+
+                          if (value === 'outras') {
+                            setUsarTransportadoraManual(true);
+                            setClienteForm((prev) => ({
+                              ...prev,
+                              transportadora_id: null,
+                              transportadora_nome_manual: '',
+                            }));
+                            return;
+                          }
+
+                          setUsarTransportadoraManual(false);
+                          setClienteForm((prev) => ({
+                            ...prev,
+                            transportadora_id: value ? Number(value) : null,
+                            transportadora_nome_manual: '',
+                          }));
+                        }}
                       >
                         <option value=''>Selecione</option>
+
                         {transportadoras.map((transportadora) => (
                           <option
                             key={transportadora.id}
@@ -624,22 +705,26 @@ export default function Vendas() {
                             {transportadora.nome}
                           </option>
                         ))}
+
+                        <option value='outras'>Outras</option>
                       </select>
                     </label>
 
-                    <label className='vendas-page__field vendas-page__field--full'>
-                      <span>Ou informe transportadora manualmente</span>
-                      <input
-                        value={clienteForm.transportadora_nome_manual}
-                        onChange={(e) =>
-                          handleClienteChange(
-                            'transportadora_nome_manual',
-                            e.target.value,
-                          )
-                        }
-                        placeholder='Ex.: Transportadora XPTO'
-                      />
-                    </label>
+                    {usarTransportadoraManual && (
+                      <label className='vendas-page__field'>
+                        <span>Nome da transportadora</span>
+                        <input
+                          value={clienteForm.transportadora_nome_manual}
+                          onChange={(e) =>
+                            handleClienteChange(
+                              'transportadora_nome_manual',
+                              e.target.value,
+                            )
+                          }
+                          placeholder='Digite o nome da transportadora'
+                        />
+                      </label>
+                    )}
                   </>
                 )}
 
@@ -666,7 +751,7 @@ export default function Vendas() {
                     endpoint='/produtos/busca'
                     label='Produto'
                     placeholder='Digite 3 letras, Enter ou clique na lupa'
-                    filterOptions={(item) => item.tipo !== 'consumivel'}
+                    extraParams={{ tipos: 'fabricado,revenda,conjunto' }}
                     onSelect={handleProdutoSelect}
                   />
                 </div>

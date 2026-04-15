@@ -1,1 +1,79 @@
-/* estilos específicos de Consumíveis */
+.consumiveis-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.consumiveis-form__group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 280px;
+}
+
+.consumiveis-form__group--full {
+  flex: 1 1 100%;
+}
+
+.consumiveis-form__group label {
+  font-weight: 600;
+}
+
+.consumiveis-form__group input,
+.consumiveis-form__group select {
+  min-height: 48px;
+}
+
+.assinatura-wrapper {
+  width: 100%;
+  background: #fff;
+  border: 1px solid #dcdcdc;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.assinatura-canvas {
+  width: 100%;
+  height: 220px;
+  display: block;
+}
+
+.assinatura-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.consumiveis-form__actions {
+  width: 100%;
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.consumiveis-form__submit {
+  min-height: 52px;
+  min-width: 220px;
+}
+
+@media (max-width: 768px) {
+  .consumiveis-form {
+    gap: 12px;
+  }
+
+  .consumiveis-form__group {
+    flex: 1 1 100%;
+  }
+
+  .assinatura-canvas {
+    height: 260px;
+  }
+
+  .consumiveis-form__actions {
+    flex-direction: column;
+  }
+
+  .consumiveis-form__submit {
+    width: 100%;
+  }
+}

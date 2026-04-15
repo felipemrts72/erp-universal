@@ -9,6 +9,7 @@ export default function BuscaManual({
   onSelect,
   value,
   onChangeValue,
+  extraParams = {},
 }) {
   const [internalTerm, setInternalTerm] = useState('');
   const [results, setResults] = useState([]);
@@ -51,7 +52,10 @@ export default function BuscaManual({
       setLoading(true);
 
       const { data } = await api.get(endpoint, {
-        params: { q: query },
+        params: {
+          q: query,
+          ...extraParams,
+        },
       });
 
       let items = Array.isArray(data)
@@ -81,28 +85,29 @@ export default function BuscaManual({
   };
 
   const handleSelect = (item) => {
+    console.log('BuscaManual handleSelect -> item', item);
     if (typeof onSelect === 'function') {
       onSelect(item.id, item);
     }
+    updateTerm(item?.nome || item?.cliente_nome || String(item?.id) || '');
 
-    updateTerm(item?.nome || item?.cliente_nome || String(item?.id || ''));
     setOpen(false);
   };
 
   return (
     <div
-      className="busca-manual"
+      className='busca-manual'
       ref={wrapperRef}
       style={{ position: 'relative' }}
     >
-      {label && <label className="orcamentos-page__label">{label}</label>}
+      {label && <label className='orcamentos-page__label'>{label}</label>}
 
       <div
-        className="busca-manual__input-wrap"
+        className='busca-manual__input-wrap'
         style={{ display: 'flex', gap: '8px', alignItems: 'center' }}
       >
         <input
-          className="orcamentos-page__input"
+          className='orcamentos-page__input'
           value={term}
           onChange={(e) => updateTerm(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -110,10 +115,10 @@ export default function BuscaManual({
         />
 
         <button
-          type="button"
-          className="btn btn--secondary"
+          type='button'
+          className='btn btn--secondary'
           onClick={handleSearch}
-          title="Buscar"
+          title='Buscar'
           style={{
             minWidth: 42,
             height: 42,
@@ -128,7 +133,7 @@ export default function BuscaManual({
 
       {open && (
         <div
-          className="busca-manual__results"
+          className='busca-manual__results'
           style={{
             position: 'absolute',
             top: '100%',
@@ -154,7 +159,7 @@ export default function BuscaManual({
             results.map((item) => (
               <button
                 key={item.id}
-                type="button"
+                type='button'
                 onClick={() => handleSelect(item)}
                 style={{
                   width: '100%',
@@ -167,10 +172,26 @@ export default function BuscaManual({
                 }}
               >
                 <strong>
-                  {item?.nome || item?.cliente_nome || `#${item?.id}`}
+                  {item?.nome_fantasia ||
+                    item?.nome ||
+                    item?.cliente_nome ||
+                    `#${item?.id}`}
                 </strong>
-                {item?.id ? (
-                  <div style={{ fontSize: 12 }}>ID: {item.id}</div>
+
+                {item?.nome_fantasia && item?.nome ? (
+                  <div style={{ fontSize: 12, color: '#64748b' }}>
+                    {item.nome}
+                  </div>
+                ) : null}
+
+                <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                  ID: {item.id}
+                </div>
+
+                {item?.tipo ? (
+                  <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                    Tipo: {item.tipo}
+                  </div>
                 ) : null}
               </button>
             ))

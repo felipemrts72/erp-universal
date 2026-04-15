@@ -16,6 +16,10 @@ function writeAll(data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
+function buildSearchTerm(q) {
+  return `%${String(q || '').trim()}%`;
+}
+
 export const orcamentoMetaRepository = {
   async salvarNomeCustomizado(itemOrcamentoId, nomeCustomizado) {
     const db = readAll();
@@ -37,17 +41,19 @@ export const orcamentoMetaRepository = {
 
 export const orcamentoRepository = {
   async buscar(q) {
+    const termo = buildSearchTerm(q);
+
     const { rows } = await pool.query(
       `
-      SELECT id, cliente_nome, status, criado_em
-      FROM orcamentos
-      WHERE 
-        cliente_nome ILIKE $1
-        OR CAST(id AS TEXT) ILIKE $1
-      ORDER BY criado_em DESC
-      LIMIT 20
+    SELECT id, cliente_nome, status, criado_em
+    FROM orcamentos
+    WHERE
+      unaccent(lower(cliente_nome)) LIKE unaccent(lower($1))
+      OR CAST(id AS TEXT) ILIKE $1
+    ORDER BY criado_em DESC
+    LIMIT 20
     `,
-      [`%${q}%`],
+      [termo],
     );
 
     return rows;

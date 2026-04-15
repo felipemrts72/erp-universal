@@ -2,12 +2,27 @@ import { producaoRepository } from '../repositories/producaoRepository.js';
 import { estoqueRepository } from '../repositories/estoqueRepository.js';
 import { produtoRepository } from '../repositories/produtoRepository.js';
 import { entregaRepository } from '../repositories/entregaRepository.js';
+import { reservaVendaRepository } from '../repositories/reservaVendaRepository.js';
+import { vendaRepository } from '../repositories/vendaRepository.js';
 import { httpError } from '../utils/httpError.js';
 import { pool } from '../database/pool.js';
 
 export const producaoService = {
   async createOrdem(payload) {
-    return producaoRepository.createOrdem(payload);
+    if (!payload.produtoId) {
+      throw httpError('Produto é obrigatório', 400);
+    }
+
+    if (!payload.quantidade || Number(payload.quantidade) <= 0) {
+      throw httpError('Quantidade inválida', 400);
+    }
+
+    return producaoRepository.createOrdem({
+      produtoId: payload.produtoId,
+      vendaId: payload.vendaId || null,
+      quantidade: Number(payload.quantidade),
+      status: payload.status || 'pendente',
+    });
   },
 
   async list() {
@@ -16,10 +31,13 @@ export const producaoService = {
 
   async iniciar(ordemId) {
     const ordem = await producaoRepository.getById(ordemId);
-    if (!ordem) throw httpError('Ordem não encontrada', 404);
+
+    if (!ordem) {
+      throw httpError('Ordem não encontrada', 404);
+    }
 
     if (ordem.status !== 'pendente') {
-      throw httpError('Ordem não pode ser iniciada');
+      throw httpError('Somente ordens pendentes podem ser iniciadas', 400);
     }
 
     return producaoRepository.updateStatus(ordemId, 'em_producao');
@@ -31,56 +49,60 @@ export const producaoService = {
     try {
       await client.query('BEGIN');
 
-      // 🔥 1. BUSCAR ORDEM (via repository)
       const ordem = await producaoRepository.getByIdWithClient(ordemId, client);
 
-      if (!ordem) throw httpError('Ordem não encontrada', 404);
-
-      if (ordem.status !== 'em_producao') {
-        throw httpError('Ordem não está em produção');
+      if (!ordem) {
+        throw httpError('Ordem não encontrada', 404);
       }
 
-      // 🔥 2. COMPONENTES (AGORA COM CLIENT)
+      if (ordem.status !== 'em_producao') {
+        throw httpError('Ordem não está em produção', 400);
+      }
+
       const componentes = await produtoRepository.buscarComponentes(
         ordem.produto_id,
         client,
       );
 
       if (!componentes.length) {
-        throw httpError('Produto não possui componentes cadastrados');
+        throw httpError('Produto não possui componentes cadastrados', 400);
       }
 
       for (const comp of componentes) {
-        const quantidade = parseFloat(comp.quantidade);
-        const ordemQtd = parseFloat(ordem.quantidade);
-        const total = quantidade * ordemQtd;
+        const quantidadeComponente = Number(comp.quantidade || 0);
+        const quantidadeOrdem = Number(ordem.quantidade || 0);
+        const totalConsumir = quantidadeComponente * quantidadeOrdem;
 
         const { rows } = await client.query(
-          `SELECT tipo, nome FROM produtos WHERE id = $1`,
+          `SELECT tipo, nome
+           FROM produtos
+           WHERE id = $1`,
           [comp.componente_id],
         );
 
         const produtoComp = rows[0];
 
         if (!produtoComp) {
-          throw httpError('Componente não encontrado');
+          throw httpError('Componente não encontrado', 404);
         }
 
-        // 🔥 só matéria-prima
         if (produtoComp.tipo === 'materia_prima') {
           const saldo = await estoqueRepository.getEstoqueAtual(
             comp.componente_id,
             client,
           );
 
-          if (saldo < total) {
-            throw httpError(`Estoque insuficiente para ${produtoComp.nome}`);
+          if (saldo < totalConsumir) {
+            throw httpError(
+              `Estoque insuficiente para ${produtoComp.nome}`,
+              400,
+            );
           }
 
           await estoqueRepository.criarMovimento(
             {
               produtoId: comp.componente_id,
-              quantidade: -total,
+              quantidade: -totalConsumir,
               tipoMovimento: 'saida',
               referenciaTipo: 'producao_consumo',
               referenciaId: ordem.id,
@@ -90,19 +112,63 @@ export const producaoService = {
         }
       }
 
-      // 🔥 3. CRIAR ENTREGA (AGORA CERTO)
-      await entregaRepository.criar(
+      await estoqueRepository.criarMovimento(
         {
-          ordem_producao_id: ordem.id,
-          pedido_id: ordem.pedido_id || null,
-          produto_id: ordem.produto_id,
-          quantidade: parseFloat(ordem.quantidade),
-          criado_por: usuario_id,
+          produtoId: ordem.produto_id,
+          quantidade: Number(ordem.quantidade),
+          tipoMovimento: 'entrada',
+          referenciaTipo: 'producao_finalizada',
+          referenciaId: ordem.id,
         },
         client,
       );
 
-      // 🔥 4. FINALIZAR ORDEM (via repository)
+      if (ordem.venda_id) {
+        const pendencia = await client.query(
+          `
+          SELECT
+            iv.quantidade AS quantidade_vendida,
+            COALESCE(rv.total_reservado, 0) AS quantidade_reservada,
+            GREATEST(iv.quantidade - COALESCE(rv.total_reservado, 0), 0) AS faltante
+          FROM itens_vendas iv
+          LEFT JOIN (
+            SELECT
+              venda_id,
+              produto_id,
+              SUM(quantidade) AS total_reservado
+            FROM reservas_venda
+            WHERE status = 'reservado'
+            GROUP BY venda_id, produto_id
+          ) rv
+            ON rv.venda_id = iv.venda_id
+           AND rv.produto_id = iv.produto_id
+          WHERE iv.venda_id = $1
+            AND iv.produto_id = $2
+          LIMIT 1
+          `,
+          [ordem.venda_id, ordem.produto_id],
+        );
+
+        const faltante = Number(pendencia.rows[0]?.faltante || 0);
+        const quantidadeReservar = Math.min(
+          Number(ordem.quantidade),
+          Math.max(faltante, 0),
+        );
+
+        if (quantidadeReservar > 0) {
+          await reservaVendaRepository.criar(
+            {
+              venda_id: ordem.venda_id,
+              produto_id: ordem.produto_id,
+              quantidade: quantidadeReservar,
+              origem_movimento_id: null,
+              status: 'reservado',
+            },
+            client,
+          );
+        }
+      }
+
       await producaoRepository.finalizar(ordemId, client);
 
       await client.query('COMMIT');

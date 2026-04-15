@@ -18,7 +18,16 @@ export const produtoController = {
     res.status(201).json(result);
   },
   async buscar(req, res) {
-    const result = await produtoService.buscar(req.query.q);
+    const { q, tipos } = req.query;
+
+    const tiposArray = tipos
+      ? String(tipos)
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : [];
+
+    const result = await produtoService.buscar(q, tiposArray);
     res.json(result);
   },
 };

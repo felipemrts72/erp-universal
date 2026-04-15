@@ -7,7 +7,7 @@ export const consumivelController = {
   },
 
   async listar(req, res) {
-    const result = await consumivelService.listar();
+    const result = await consumivelService.listar(req.query);
     res.json(result);
   },
 

@@ -4,36 +4,52 @@ export const entregaRepository = {
   async listarPendentes() {
     const { rows } = await pool.query(`
       SELECT
-        e.id,
+        MIN(e.id) AS id,
         e.venda_id,
-        e.ordem_producao_id,
-        e.produto_id,
-        e.quantidade,
-        e.status,
-        e.tipo,
-        e.usuario_id,
-        e.criado_em,
-        e.entregue_em,
-        e.retirado_em,
-        e.transportadora_id,
-        e.transportadora_nome_manual,
-        e.codigo_rastreio,
-        e.observacoes,
-        e.foto_saida_url,
-        e.assinatura_saida_url,
-        e.nome_recebedor,
-        e.documento_recebedor,
-        e.placa_veiculo,
-        e.observacoes_saida,
-        p.nome AS produto_nome,
+        v.prazo_entrega,
+        MIN(e.ordem_producao_id) AS ordem_producao_id,
+        COUNT(*)::int AS total_itens_entrega,
+        COALESCE(SUM(e.quantidade), 0) AS quantidade_total,
+        'pendente' AS status,
+        COALESCE(MAX(e.tipo), 'retirada') AS tipo,
+        MAX(e.usuario_id) AS usuario_id,
+        MIN(e.criado_em) AS criado_em,
+        MAX(e.entregue_em) AS entregue_em,
+        MAX(e.retirado_em) AS retirado_em,
+        MAX(e.transportadora_id) AS transportadora_id,
+        MAX(e.transportadora_nome_manual) AS transportadora_nome_manual,
+        MAX(e.codigo_rastreio) AS codigo_rastreio,
+        MAX(e.observacoes) AS observacoes,
+        MAX(e.foto_saida_url) AS foto_saida_url,
+        MAX(e.assinatura_saida_url) AS assinatura_saida_url,
+        MAX(e.nome_recebedor) AS nome_recebedor,
+        MAX(e.documento_recebedor) AS documento_recebedor,
+        MAX(e.placa_veiculo) AS placa_veiculo,
+        MAX(e.observacoes_saida) AS observacoes_saida,
         v.cliente_nome,
-        t.nome AS transportadora_nome
+        t.nome AS transportadora_nome,
+        STRING_AGG(
+          DISTINCT (p.nome || ' (' || e.quantidade || ')'),
+          ' | '
+          ORDER BY (p.nome || ' (' || e.quantidade || ')')
+        ) AS itens_resumo,
+        COALESCE(
+          JSON_AGG(
+            DISTINCT JSONB_BUILD_OBJECT(
+              'produto_nome', p.nome,
+              'quantidade', e.quantidade
+            )
+          ) FILTER (WHERE p.id IS NOT NULL),
+          '[]'
+        ) AS itens
       FROM entregas e
       JOIN produtos p ON p.id = e.produto_id
       LEFT JOIN vendas v ON v.id = e.venda_id
       LEFT JOIN transportadoras t ON t.id = e.transportadora_id
       WHERE e.status = 'pendente'
-      ORDER BY e.criado_em ASC
+        AND e.venda_id IS NOT NULL
+      GROUP BY e.venda_id, v.cliente_nome, v.prazo_entrega, t.nome
+      ORDER BY MIN(e.criado_em) ASC
     `);
 
     return rows;
@@ -41,39 +57,55 @@ export const entregaRepository = {
 
   async listarSaidasHoje() {
     const { rows } = await pool.query(`
-    SELECT
-      e.id,
-      e.venda_id,
-      e.ordem_producao_id,
-      e.produto_id,
-      e.quantidade,
-      e.status,
-      e.tipo,
-      e.usuario_id,
-      e.criado_em,
-      e.entregue_em,
-      e.retirado_em,
-      e.transportadora_id,
-      e.transportadora_nome_manual,
-      e.codigo_rastreio,
-      e.observacoes,
-      e.foto_saida_url,
-      e.assinatura_saida_url,
-      e.nome_recebedor,
-      e.documento_recebedor,
-      e.placa_veiculo,
-      e.observacoes_saida,
-      p.nome AS produto_nome,
-      v.cliente_nome,
-      t.nome AS transportadora_nome
-    FROM entregas e
-    JOIN produtos p ON p.id = e.produto_id
-    LEFT JOIN vendas v ON v.id = e.venda_id
-    LEFT JOIN transportadoras t ON t.id = e.transportadora_id
-    WHERE e.status = 'entregue'
-      AND DATE(COALESCE(e.retirado_em, e.entregue_em)) = CURRENT_DATE
-    ORDER BY COALESCE(e.retirado_em, e.entregue_em) DESC
-  `);
+      SELECT
+        MIN(e.id) AS id,
+        e.venda_id,
+        v.prazo_entrega,
+        MIN(e.ordem_producao_id) AS ordem_producao_id,
+        COUNT(*)::int AS total_itens_entrega,
+        COALESCE(SUM(e.quantidade), 0) AS quantidade_total,
+        'entregue' AS status,
+        COALESCE(MAX(e.tipo), 'retirada') AS tipo,
+        MAX(e.usuario_id) AS usuario_id,
+        MIN(e.criado_em) AS criado_em,
+        MAX(e.entregue_em) AS entregue_em,
+        MAX(e.retirado_em) AS retirado_em,
+        MAX(e.transportadora_id) AS transportadora_id,
+        MAX(e.transportadora_nome_manual) AS transportadora_nome_manual,
+        MAX(e.codigo_rastreio) AS codigo_rastreio,
+        MAX(e.observacoes) AS observacoes,
+        MAX(e.foto_saida_url) AS foto_saida_url,
+        MAX(e.assinatura_saida_url) AS assinatura_saida_url,
+        MAX(e.nome_recebedor) AS nome_recebedor,
+        MAX(e.documento_recebedor) AS documento_recebedor,
+        MAX(e.placa_veiculo) AS placa_veiculo,
+        MAX(e.observacoes_saida) AS observacoes_saida,
+        v.cliente_nome,
+        t.nome AS transportadora_nome,
+        STRING_AGG(
+          DISTINCT (p.nome || ' (' || e.quantidade || ')'),
+          ' | '
+          ORDER BY (p.nome || ' (' || e.quantidade || ')')
+        ) AS itens_resumo,
+        COALESCE(
+          JSON_AGG(
+            DISTINCT JSONB_BUILD_OBJECT(
+              'produto_nome', p.nome,
+              'quantidade', e.quantidade
+            )
+          ) FILTER (WHERE p.id IS NOT NULL),
+          '[]'
+        ) AS itens
+      FROM entregas e
+      JOIN produtos p ON p.id = e.produto_id
+      LEFT JOIN vendas v ON v.id = e.venda_id
+      LEFT JOIN transportadoras t ON t.id = e.transportadora_id
+      WHERE e.status = 'entregue'
+        AND e.venda_id IS NOT NULL
+        AND DATE(COALESCE(e.retirado_em, e.entregue_em)) = CURRENT_DATE
+      GROUP BY e.venda_id, v.cliente_nome, v.prazo_entrega, t.nome
+      ORDER BY MAX(COALESCE(e.retirado_em, e.entregue_em)) DESC
+    `);
 
     return rows;
   },
@@ -81,62 +113,120 @@ export const entregaRepository = {
   async listarTodas() {
     const { rows } = await pool.query(`
       SELECT
-        e.id,
+        MIN(e.id) AS id,
         e.venda_id,
-        e.ordem_producao_id,
-        e.produto_id,
-        e.quantidade,
-        e.status,
-        e.tipo,
-        e.usuario_id,
-        e.criado_em,
-        e.entregue_em,
-        e.retirado_em,
-        e.transportadora_id,
-        e.transportadora_nome_manual,
-        e.codigo_rastreio,
-        e.observacoes,
-        e.foto_saida_url,
-        e.assinatura_saida_url,
-        e.nome_recebedor,
-        e.documento_recebedor,
-        e.placa_veiculo,
-        e.observacoes_saida,
-        p.nome AS produto_nome,
+        v.prazo_entrega,
+        MIN(e.ordem_producao_id) AS ordem_producao_id,
+        COUNT(*)::int AS total_itens_entrega,
+        COALESCE(SUM(e.quantidade), 0) AS quantidade_total,
+        MAX(e.status) AS status,
+        COALESCE(MAX(e.tipo), 'retirada') AS tipo,
+        MAX(e.usuario_id) AS usuario_id,
+        MIN(e.criado_em) AS criado_em,
+        MAX(e.entregue_em) AS entregue_em,
+        MAX(e.retirado_em) AS retirado_em,
+        MAX(e.transportadora_id) AS transportadora_id,
+        MAX(e.transportadora_nome_manual) AS transportadora_nome_manual,
+        MAX(e.codigo_rastreio) AS codigo_rastreio,
+        MAX(e.observacoes) AS observacoes,
+        MAX(e.foto_saida_url) AS foto_saida_url,
+        MAX(e.assinatura_saida_url) AS assinatura_saida_url,
+        MAX(e.nome_recebedor) AS nome_recebedor,
+        MAX(e.documento_recebedor) AS documento_recebedor,
+        MAX(e.placa_veiculo) AS placa_veiculo,
+        MAX(e.observacoes_saida) AS observacoes_saida,
         v.cliente_nome,
-        t.nome AS transportadora_nome
+        t.nome AS transportadora_nome,
+        STRING_AGG(
+          DISTINCT (p.nome || ' (' || e.quantidade || ')'),
+          ' | '
+          ORDER BY (p.nome || ' (' || e.quantidade || ')')
+        ) AS itens_resumo,
+        COALESCE(
+          JSON_AGG(
+            DISTINCT JSONB_BUILD_OBJECT(
+              'produto_nome', p.nome,
+              'quantidade', e.quantidade
+            )
+          ) FILTER (WHERE p.id IS NOT NULL),
+          '[]'
+        ) AS itens
       FROM entregas e
       JOIN produtos p ON p.id = e.produto_id
       LEFT JOIN vendas v ON v.id = e.venda_id
       LEFT JOIN transportadoras t ON t.id = e.transportadora_id
-      ORDER BY e.criado_em DESC
+      WHERE e.venda_id IS NOT NULL
+      GROUP BY e.venda_id, v.cliente_nome, v.prazo_entrega, t.nome
+      ORDER BY MIN(e.criado_em) DESC
     `);
 
     return rows;
   },
 
-  async getById(id) {
+  async getResumoByVendaId(vendaId) {
     const { rows } = await pool.query(
       `
-      SELECT *
-      FROM entregas
-      WHERE id = $1
+      SELECT
+        MIN(e.id) AS id,
+        e.venda_id,
+        v.prazo_entrega,
+        MIN(e.ordem_producao_id) AS ordem_producao_id,
+        COUNT(*)::int AS total_itens_entrega,
+        COALESCE(SUM(e.quantidade), 0) AS quantidade_total,
+        MAX(e.status) AS status,
+        COALESCE(MAX(e.tipo), 'retirada') AS tipo,
+        MAX(e.usuario_id) AS usuario_id,
+        MIN(e.criado_em) AS criado_em,
+        MAX(e.entregue_em) AS entregue_em,
+        MAX(e.retirado_em) AS retirado_em,
+        MAX(e.transportadora_id) AS transportadora_id,
+        MAX(e.transportadora_nome_manual) AS transportadora_nome_manual,
+        MAX(e.codigo_rastreio) AS codigo_rastreio,
+        MAX(e.observacoes) AS observacoes,
+        MAX(e.foto_saida_url) AS foto_saida_url,
+        MAX(e.assinatura_saida_url) AS assinatura_saida_url,
+        MAX(e.nome_recebedor) AS nome_recebedor,
+        MAX(e.documento_recebedor) AS documento_recebedor,
+        MAX(e.placa_veiculo) AS placa_veiculo,
+        MAX(e.observacoes_saida) AS observacoes_saida,
+        v.cliente_nome,
+        t.nome AS transportadora_nome,
+        STRING_AGG(
+          DISTINCT (p.nome || ' (' || e.quantidade || ')'),
+          ' | '
+          ORDER BY (p.nome || ' (' || e.quantidade || ')')
+        ) AS itens_resumo,
+        COALESCE(
+          JSON_AGG(
+            DISTINCT JSONB_BUILD_OBJECT(
+              'produto_nome', p.nome,
+              'quantidade', e.quantidade
+            )
+          ) FILTER (WHERE p.id IS NOT NULL),
+          '[]'
+        ) AS itens
+      FROM entregas e
+      JOIN produtos p ON p.id = e.produto_id
+      LEFT JOIN vendas v ON v.id = e.venda_id
+      LEFT JOIN transportadoras t ON t.id = e.transportadora_id
+      WHERE e.venda_id = $1
+      GROUP BY e.venda_id, v.cliente_nome, v.prazo_entrega, t.nome
       LIMIT 1
       `,
-      [id],
+      [vendaId],
     );
 
     return rows[0] || null;
   },
 
-  async countPendentesByVendaId(vendaId) {
-    const { rows } = await pool.query(
+  async countPendentesByVendaId(vendaId, client = pool) {
+    const { rows } = await client.query(
       `
-      SELECT COUNT(*)::int AS total
-      FROM entregas
-      WHERE venda_id = $1
-        AND status = 'pendente'
-      `,
+    SELECT COUNT(*)::int AS total
+    FROM entregas
+    WHERE venda_id = $1
+      AND status = 'pendente'
+    `,
       [vendaId],
     );
 
@@ -185,8 +275,8 @@ export const entregaRepository = {
     return rows[0];
   },
 
-  async entregar(
-    id,
+  async entregarVenda(
+    vendaId,
     {
       usuario_id,
       tipo,
@@ -198,8 +288,9 @@ export const entregaRepository = {
       assinatura_saida_url,
       codigo_rastreio,
     },
+    client = pool,
   ) {
-    const { rows } = await pool.query(
+    const { rows } = await client.query(
       `UPDATE entregas
        SET status = 'entregue',
            entregue_em = NOW(),
@@ -213,11 +304,11 @@ export const entregaRepository = {
            foto_saida_url = $8,
            assinatura_saida_url = $9,
            codigo_rastreio = $10
-       WHERE id = $1
+       WHERE venda_id = $1
          AND status = 'pendente'
        RETURNING *`,
       [
-        id,
+        vendaId,
         usuario_id || null,
         tipo || 'retirada',
         nome_recebedor || null,
@@ -230,6 +321,21 @@ export const entregaRepository = {
       ],
     );
 
-    return rows[0] || null;
+    return rows;
+  },
+
+  async listarPendentesRowsByVendaId(vendaId, client = pool) {
+    const { rows } = await client.query(
+      `
+    SELECT *
+    FROM entregas
+    WHERE venda_id = $1
+      AND status = 'pendente'
+    ORDER BY id
+    `,
+      [vendaId],
+    );
+
+    return rows;
   },
 };

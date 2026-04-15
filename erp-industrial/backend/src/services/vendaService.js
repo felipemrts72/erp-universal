@@ -1,3 +1,4 @@
+import { clienteRepository } from '../repositories/clienteRepository.js';
 import { orcamentoRepository } from '../repositories/orcamentoRepository.js';
 import { vendaRepository } from '../repositories/vendaRepository.js';
 import { produtoRepository } from '../repositories/produtoRepository.js';
@@ -14,7 +15,7 @@ function toNumber(value) {
 
 async function reservarDisponivelParaVenda(vendaId, item, produto) {
   const saldoFisico = await estoqueRepository.getEstoqueAtual(item.produto_id);
-  const reservado = await reservaVendaRepository.getReservadoPorProduto(
+  const reservado = await reservaVendaRepository.getReservadoAtivoPorProduto(
     item.produto_id,
   );
 
@@ -53,7 +54,7 @@ function calcularStatusVendaPorItens(itens) {
 }
 
 export const vendaService = {
-  async createFromOrcamento(orcamentoId) {
+  async createFromOrcamento(orcamentoId, payload = {}) {
     const orcamento = await orcamentoRepository.getWithItens(orcamentoId);
 
     if (!orcamento) throw httpError('Orçamento não encontrado', 404);
@@ -64,13 +65,16 @@ export const vendaService = {
     const venda = await vendaRepository.createFromOrcamento(
       {
         ...orcamento,
-        tipo_entrega: orcamento.tipo_entrega || 'retirada',
-        transportadora_id: orcamento.transportadora_id || null,
-        transportadora_nome_manual:
-          orcamento.transportadora_nome_manual || null,
-        observacoes_entrega: orcamento.observacoes_entrega || null,
+        cliente_id: payload.cliente_id || orcamento.cliente_id || null,
       },
       orcamento.itens,
+      {
+        tipo_entrega: payload.tipo_entrega || 'retirada',
+        transportadora_id: payload.transportadora_id || null,
+        transportadora_nome_manual: payload.transportadora_nome_manual || null,
+        observacoes_entrega: payload.observacoes_entrega || null,
+        prazo_entrega: payload.prazo_entrega || null,
+      },
     );
 
     for (const item of orcamento.itens) {
@@ -138,13 +142,101 @@ export const vendaService = {
       }
     });
 
+    if (!payload.tipo_entrega) {
+      throw httpError('Tipo de entrega é obrigatório', 400);
+    }
+
+    if (
+      payload.tipo_entrega === 'transportadora' &&
+      !payload.transportadora_id &&
+      !String(payload.transportadora_nome_manual || '').trim()
+    ) {
+      throw httpError(
+        'Selecione uma transportadora ou informe uma manualmente',
+        400,
+      );
+    }
+
+    let clienteId = payload.cliente_id || null;
+
+    if (!clienteId) {
+      if (!payload.telefone || !String(payload.telefone).trim()) {
+        throw httpError(
+          'Telefone é obrigatório para cliente não cadastrado',
+          400,
+        );
+      }
+
+      if (!payload.email || !String(payload.email).trim()) {
+        throw httpError(
+          'E-mail é obrigatório para cliente não cadastrado',
+          400,
+        );
+      }
+
+      if (!payload.cpf_cnpj || !String(payload.cpf_cnpj).trim()) {
+        throw httpError(
+          'CPF/CNPJ é obrigatório para cliente não cadastrado',
+          400,
+        );
+      }
+
+      if (!payload.endereco || !String(payload.endereco).trim()) {
+        throw httpError(
+          'Endereço é obrigatório para cliente não cadastrado',
+          400,
+        );
+      }
+
+      if (!payload.numero || !String(payload.numero).trim()) {
+        throw httpError(
+          'Número é obrigatório para cliente não cadastrado',
+          400,
+        );
+      }
+
+      if (!payload.bairro || !String(payload.bairro).trim()) {
+        throw httpError(
+          'Bairro é obrigatório para cliente não cadastrado',
+          400,
+        );
+      }
+
+      if (!payload.cidade || !String(payload.cidade).trim()) {
+        throw httpError(
+          'Cidade é obrigatória para cliente não cadastrado',
+          400,
+        );
+      }
+
+      if (!payload.cep || !String(payload.cep).trim()) {
+        throw httpError('CEP é obrigatório para cliente não cadastrado', 400);
+      }
+
+      const clienteCriado = await clienteRepository.create({
+        nome: payload.nome_completo,
+        nome_fantasia: payload.clienteNome,
+        telefone: payload.telefone,
+        email: payload.email,
+        cpf_cnpj: payload.cpf_cnpj,
+        endereco: payload.endereco,
+        numero: payload.numero,
+        bairro: payload.bairro,
+        cidade: payload.cidade,
+        cep: payload.cep,
+      });
+
+      clienteId = clienteCriado.id;
+    }
+
     const venda = await vendaRepository.createDireta({
       clienteNome: payload.clienteNome,
-      cliente_id: payload.cliente_id || null,
+      cliente_id: clienteId,
       tipo_entrega: payload.tipo_entrega || 'retirada',
       transportadora_id: payload.transportadora_id || null,
       transportadora_nome_manual: payload.transportadora_nome_manual || null,
       observacoes_entrega: payload.observacoes_entrega || null,
+      prazo_entrega: payload.prazo_entrega || null,
       itens: payload.itens,
     });
 

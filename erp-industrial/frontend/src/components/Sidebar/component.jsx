@@ -7,6 +7,7 @@ const links = [
   ['/vendas', 'Vendas'],
   ['/produtos', 'Produtos'],
   ['/estoque', 'Estoque'],
+  ['/clientes', 'Clientes'],
   ['/producao', 'Produção'],
   ['/consumiveis', 'Consumíveis'],
   ['/funcionarios', 'Funcionários'],
@@ -16,8 +17,8 @@ const links = [
 export default function Sidebar({ isOpen, onClose }) {
   return (
     <aside className={`sidebar ${isOpen ? 'sidebar--open' : ''}`}>
-      <div className="sidebar__brand">ERP Industrial</div>
-      <nav className="sidebar__nav">
+      <div className='sidebar__brand'>ERP Industrial</div>
+      <nav className='sidebar__nav'>
         {links.map(([to, label]) => (
           <NavLink
             key={to}

@@ -1,5 +1,9 @@
 import { pool } from '../database/pool.js';
 
+function buildSearchTerm(q) {
+  return `%${String(q || '').trim()}%`;
+}
+
 export const produtoRepository = {
   async create(data, client = pool) {
     const { nome, tipo, sku, estoqueMinimo, precoVenda, custo, unidadeMedida } =
@@ -77,10 +81,49 @@ export const produtoRepository = {
   },
 
   async buscarPorNome(nome) {
+    const termo = buildSearchTerm(nome);
+
     const { rows } = await pool.query(
-      'SELECT * FROM produtos WHERE nome ILIKE $1 LIMIT 10',
-      [`%${nome}%`],
+      `
+    SELECT *
+    FROM produtos
+    WHERE unaccent(lower(nome)) LIKE unaccent(lower($1))
+    LIMIT 10
+    `,
+      [termo],
     );
+
+    return rows;
+  },
+
+  async buscar(q, tipos = []) {
+    const params = [buildSearchTerm(q)];
+    let where = `WHERE unaccent(lower(p.nome)) LIKE unaccent(lower($1))`;
+
+    if (tipos.length) {
+      params.push(tipos);
+      where += ` AND p.tipo = ANY($2)`;
+    }
+
+    const { rows } = await pool.query(
+      `
+    SELECT
+      p.id,
+      p.nome,
+      p.tipo,
+      p.sku,
+      p.estoque_minimo,
+      p.preco_venda,
+      p.custo,
+      p.unidade_medida
+    FROM produtos p
+    ${where}
+    ORDER BY p.nome
+    LIMIT 20
+    `,
+      params,
+    );
+
     return rows;
   },
 };

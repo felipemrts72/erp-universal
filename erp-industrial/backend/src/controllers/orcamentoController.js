@@ -51,4 +51,9 @@ export const orcamentoController = {
     const result = await orcamentoService.clonar(Number(req.params.id));
     res.status(201).json(result);
   },
+  async aprovar(req, res) {
+    const { id } = req.params;
+    const result = await orcamentoService.aprovar(Number(id), req.body);
+    res.json(result);
+  },
 };

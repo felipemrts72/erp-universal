@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import api from '../../services/api';
 import Card from '../../components/Card';
-import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import Toast from '../../components/Toast';
 
@@ -10,6 +9,11 @@ import './style.css';
 function formatDate(value) {
   if (!value) return '-';
   return new Date(value).toLocaleString('pt-BR');
+}
+
+function formatDateOnly(value) {
+  if (!value) return '-';
+  return new Date(value).toLocaleDateString('pt-BR');
 }
 
 function getTipoEntregaLabel(row) {
@@ -214,12 +218,13 @@ export default function Entregas() {
       assinatura_saida_url: assinaturaBase64,
     };
 
-    console.log('PAYLOAD ENTREGA FRONT:', payload);
-
     try {
       setSaving(true);
 
-      await api.patch(`/entregas/${entregaSelecionada.id}/entregar`, payload);
+      await api.patch(
+        `/entregas/${entregaSelecionada.venda_id}/entregar`,
+        payload,
+      );
 
       showToast('Saída registrada com sucesso.', 'success');
       resetModal();
@@ -268,83 +273,93 @@ export default function Entregas() {
           </div>
         </div>
 
-        <div className='entregas-page'>
-          <DataTable
-            columns={[
-              { key: 'id', label: 'ID' },
-              {
-                key: 'venda_id',
-                label: 'Venda',
-                render: (_, row) => (row.venda_id ? `#${row.venda_id}` : '-'),
-              },
-              {
-                key: 'cliente_nome',
-                label: 'Cliente',
-                render: (_, row) => row.cliente_nome || '-',
-              },
-              {
-                key: 'produto_nome',
-                label: 'Produto',
-                render: (_, row) => row.produto_nome || '-',
-              },
-              {
-                key: 'quantidade',
-                label: 'Qtd.',
-                render: (_, row) => row.quantidade || '-',
-              },
-              {
-                key: 'tipo',
-                label: 'Tipo',
-                render: (_, row) => (
-                  <span className='entregas-page__pill'>
-                    {getTipoEntregaLabel(row)}
-                  </span>
-                ),
-              },
-              {
-                key: 'transportadora',
-                label: 'Transportadora',
-                render: (_, row) => getTransportadoraLabel(row),
-              },
-              {
-                key: filtro === 'hoje' ? 'retirado_em' : 'criado_em',
-                label: filtro === 'hoje' ? 'Saiu em' : 'Criado em',
-                render: (_, row) =>
-                  formatDate(
-                    filtro === 'hoje'
-                      ? row.retirado_em || row.entregue_em
-                      : row.criado_em,
-                  ),
-              },
-              {
-                key: 'status',
-                label: 'Status',
-                render: (_, row) => (
+        <div className='entregas-page__cards'>
+          {items.length ? (
+            items.map((row) => (
+              <article
+                key={row.venda_id || row.id}
+                className='entregas-page__card'
+                onClick={() => abrirModalEntrega(row)}
+              >
+                <div className='entregas-page__card-header'>
+                  <div>
+                    <h3 className='entregas-page__title'>Entrega #{row.id}</h3>
+                    <p className='entregas-page__subtitle'>
+                      Venda {row.venda_id ? `#${row.venda_id}` : '-'}
+                    </p>
+                  </div>
+
                   <StatusBadge status={row.status || 'pendente'} />
-                ),
-              },
-              ...(filtro === 'pendentes'
-                ? [
-                    {
-                      key: 'acao',
-                      label: 'Ação',
-                      render: (_, row) => (
-                        <button
-                          className='btn btn--primary'
-                          type='button'
-                          onClick={() => abrirModalEntrega(row)}
-                          disabled={loading || saving}
-                        >
-                          Registrar saída
-                        </button>
-                      ),
-                    },
-                  ]
-                : []),
-            ]}
-            rows={items}
-            emptyText='Nenhum registro encontrado para este filtro.'
-          />
+                </div>
+
+                <div className='entregas-page__meta-grid'>
+                  <div className='entregas-page__meta'>
+                    <span className='entregas-page__meta-label'>Cliente</span>
+                    <strong>{row.cliente_nome || '-'}</strong>
+                  </div>
+
+                  <div className='entregas-page__meta'>
+                    <span className='entregas-page__meta-label'>
+                      Qtd. total
+                    </span>
+                    <strong>{row.quantidade_total || '-'}</strong>
+                  </div>
+
+                  <div className='entregas-page__meta'>
+                    <span className='entregas-page__meta-label'>Tipo</span>
+                    <strong>{getTipoEntregaLabel(row)}</strong>
+                  </div>
+
+                  <div className='entregas-page__meta'>
+                    <span className='entregas-page__meta-label'>
+                      Transportadora
+                    </span>
+                    <strong>{getTransportadoraLabel(row)}</strong>
+                  </div>
+
+                  <div className='entregas-page__meta'>
+                    <span className='entregas-page__meta-label'>
+                      Prazo combinado
+                    </span>
+                    <strong>{formatDateOnly(row.prazo_entrega)}</strong>
+                  </div>
+
+                  <div className='entregas-page__meta'>
+                    <span className='entregas-page__meta-label'>
+                      {filtro === 'hoje' ? 'Saiu em' : 'Criado em'}
+                    </span>
+                    <strong>
+                      {formatDate(
+                        filtro === 'hoje'
+                          ? row.retirado_em || row.entregue_em
+                          : row.criado_em,
+                      )}
+                    </strong>
+                  </div>
+                </div>
+
+                {filtro === 'pendentes' && (
+                  <div className='entregas-page__actions'>
+                    <button
+                      className='btn btn--primary'
+                      type='button'
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        abrirModalEntrega(row);
+                      }}
+                      disabled={loading || saving}
+                    >
+                      Registrar saída
+                    </button>
+                  </div>
+                )}
+              </article>
+            ))
+          ) : (
+            <div className='entregas-page__empty'>
+              Nenhum registro encontrado para este filtro.
+            </div>
+          )}
         </div>
       </Card>
 
@@ -373,15 +388,50 @@ export default function Entregas() {
                 {entregaSelecionada.cliente_nome || '-'}
               </div>
               <div>
-                <strong>Produto:</strong>{' '}
-                {entregaSelecionada.produto_nome || '-'}
-              </div>
-              <div>
-                <strong>Qtd.:</strong> {entregaSelecionada.quantidade || '-'}
-              </div>
-              <div>
                 <strong>Tipo:</strong> {getTipoEntregaLabel(entregaSelecionada)}
               </div>
+              <div>
+                <strong>Transportadora:</strong>{' '}
+                {getTransportadoraLabel(entregaSelecionada)}
+              </div>
+              <div>
+                <strong>Prazo combinado:</strong>{' '}
+                {formatDateOnly(entregaSelecionada.prazo_entrega)}
+              </div>
+              <div>
+                <strong>Qtd. total:</strong>{' '}
+                {entregaSelecionada.quantidade_total || '-'}
+              </div>
+            </div>
+
+            <div className='entregas-modal__items-box'>
+              <span className='entregas-modal__items-title'>
+                Itens a enviar
+              </span>
+
+              {Array.isArray(entregaSelecionada.itens) &&
+              entregaSelecionada.itens.length ? (
+                <div className='entregas-modal__items-list'>
+                  {entregaSelecionada.itens.map((item, index) => (
+                    <div
+                      key={`${item.produto_nome}-${index}`}
+                      className='entregas-modal__item-row'
+                    >
+                      <span className='entregas-modal__item-name'>
+                        {item.produto_nome}
+                      </span>
+                      <span className='entregas-modal__item-qty'>
+                        {Number(item.quantidade).toLocaleString('pt-BR', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p>-</p>
+              )}
             </div>
 
             <div className='entregas-modal__form'>

@@ -1,7 +1,7 @@
 import { pool } from '../database/pool.js';
 
 export const vendaRepository = {
-  async createFromOrcamento(orcamento, itens) {
+  async createFromOrcamento(orcamento, itens, entrega = {}) {
     const client = await pool.connect();
 
     try {
@@ -9,31 +9,33 @@ export const vendaRepository = {
 
       const venda = await client.query(
         `INSERT INTO vendas (
-          orcamento_id, 
-          cliente_id, 
-          cliente_nome,
-          tipo_entrega,
-          transportadora_id,
-          transportadora_nome_manual,
-          observacoes_entrega
-        )
-         VALUES ($1,$2,$3,$4,$5,$6,$7)
-         RETURNING *`,
+        orcamento_id,
+        cliente_id,
+        cliente_nome,
+        tipo_entrega,
+        transportadora_id,
+        transportadora_nome_manual,
+        observacoes_entrega,
+        prazo_entrega
+      )
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       RETURNING *`,
         [
           orcamento.id,
           orcamento.cliente_id || null,
           orcamento.cliente_nome,
-          orcamento.tipo_entrega || 'retirada',
-          orcamento.transportadora_id || null,
-          orcamento.transportadora_nome_manual || null,
-          orcamento.observacoes_entrega || null,
+          entrega.tipo_entrega || 'retirada',
+          entrega.transportadora_id || null,
+          entrega.transportadora_nome_manual || null,
+          entrega.observacoes_entrega || null,
+          entrega.prazo_entrega || null,
         ],
       );
 
       for (const item of itens) {
         await client.query(
           `INSERT INTO itens_vendas (venda_id, produto_id, quantidade, preco_unitario)
-           VALUES ($1,$2,$3,$4)`,
+         VALUES ($1,$2,$3,$4)`,
           [
             venda.rows[0].id,
             item.produto_id,
@@ -59,6 +61,7 @@ export const vendaRepository = {
     transportadora_id,
     transportadora_nome_manual,
     observacoes_entrega,
+    prazo_entrega,
     itens,
   }) {
     const client = await pool.connect();
@@ -73,10 +76,11 @@ export const vendaRepository = {
         tipo_entrega,
         transportadora_id,
         transportadora_nome_manual,
-        observacoes_entrega
+        observacoes_entrega,
+        prazo_entrega
       )
-      VALUES ($1,$2,$3,$4,$5,$6)
-      RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       RETURNING *`,
         [
           cliente_id || null,
           clienteNome,
@@ -84,6 +88,7 @@ export const vendaRepository = {
           transportadora_id || null,
           transportadora_nome_manual || null,
           observacoes_entrega || null,
+          prazo_entrega || null,
         ],
       );
 
@@ -126,6 +131,8 @@ export const vendaRepository = {
       v.transportadora_id,
       v.transportadora_nome_manual,
       v.observacoes_entrega,
+      v.prazo_entrega,
+      t.nome AS transportadora_nome,
 
       COALESCE(
         SUM(iv.quantidade * iv.preco_unitario),
@@ -154,8 +161,9 @@ export const vendaRepository = {
     FROM vendas v
     LEFT JOIN itens_vendas iv ON iv.venda_id = v.id
     LEFT JOIN produtos p ON p.id = iv.produto_id
+    LEFT JOIN transportadoras t ON t.id = v.transportadora_id
     WHERE v.status IN ('aberto', 'parcial')
-    GROUP BY v.id
+    GROUP BY v.id, t.nome, v.prazo_entrega
     ORDER BY v.id DESC
   `);
 

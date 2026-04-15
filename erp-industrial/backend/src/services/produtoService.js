@@ -84,8 +84,8 @@ export const produtoService = {
     return produtoRepository.addComponente(payload);
   },
 
-  async buscar(q) {
+  async buscar(q, tipos = []) {
     if (!q) return [];
-    return produtoRepository.buscarPorNome(q);
+    return produtoRepository.buscar(q, tipos);
   },
 };

@@ -2,6 +2,7 @@ import { orcamentoRepository } from '../repositories/orcamentoRepository.js';
 import { httpError } from '../utils/httpError.js';
 import { vendaService } from './vendaService.js';
 import { vendaRepository } from '../repositories/vendaRepository.js';
+import { clienteRepository } from '../repositories/clienteRepository.js';
 
 const templates = [
   {
@@ -80,8 +81,14 @@ export const orcamentoService = {
     await orcamentoRepository.updateStatus(orcamento.id, 'aprovado');
 
     // 2. cria venda a partir do orçamento aprovado
-    const venda = await vendaService.createFromOrcamento(orcamento.id);
-
+    const venda = await vendaService.createFromOrcamento(orcamento.id, {
+      cliente_id: payload.cliente_id || null,
+      tipo_entrega: payload.tipo_entrega || 'retirada',
+      transportadora_id: payload.transportadora_id || null,
+      transportadora_nome_manual: payload.transportadora_nome_manual || '',
+      observacoes_entrega: payload.observacoes_entrega || '',
+      prazo_entrega: payload.prazo_entrega || null,
+    });
     return {
       message: 'Venda lançada com sucesso',
       orcamento_id: orcamento.id,
@@ -132,30 +139,6 @@ export const orcamentoService = {
       })),
     });
   },
-  /* async aprovarOrcamento(id) {
-    const orcamento = await orcamentoRepository.getById(id);
-
-    if (!orcamento) throw new Error('Orçamento não encontrado');
-
-    // 1. atualizar status
-    await orcamentoRepository.updateStatus(id, 'aprovado');
-
-    // 2. buscar itens do orçamento
-    const itens = await orcamentoRepository.getItens(id);
-
-    for (const item of itens) {
-      // 3. criar ordem de produção
-      const op = await ordemProducaoRepository.create({
-        produtoId: item.produto_id,
-        quantidade: item.quantidade,
-      });
-
-      // 4. gerar requisição automaticamente
-      await requisicaoService.criarParaOrdem(op.id, item.quantidade);
-    }
-
-    return { message: 'Orçamento aprovado com sucesso' };
-  }, */
 
   async list() {
     return orcamentoRepository.list();
@@ -192,5 +175,125 @@ export const orcamentoService = {
     }
 
     return orcamento;
+  },
+  async aprovar(id, payload) {
+    const orcamento = await orcamentoRepository.getWithItens(id);
+
+    if (!orcamento) {
+      throw httpError('Orçamento não encontrado', 404);
+    }
+
+    if (orcamento.status === 'aprovado') {
+      throw httpError('Orçamento já está aprovado', 400);
+    }
+
+    const vendaExistente = await vendaRepository.getByOrcamentoId(id);
+    if (vendaExistente) {
+      throw httpError('Este orçamento já gerou uma venda', 400);
+    }
+
+    let clienteId = orcamento.cliente_id || null;
+    let clienteNome = orcamento.cliente_nome || '';
+
+    if (!clienteId) {
+      if (!payload.telefone || !String(payload.telefone).trim()) {
+        throw httpError(
+          'Telefone é obrigatório para cliente não cadastrado',
+          400,
+        );
+      }
+
+      if (!payload.email || !String(payload.email).trim()) {
+        throw httpError(
+          'E-mail é obrigatório para cliente não cadastrado',
+          400,
+        );
+      }
+
+      if (!payload.cpf_cnpj || !String(payload.cpf_cnpj).trim()) {
+        throw httpError(
+          'CPF/CNPJ é obrigatório para cliente não cadastrado',
+          400,
+        );
+      }
+
+      if (!payload.endereco || !String(payload.endereco).trim()) {
+        throw httpError(
+          'Endereço é obrigatório para cliente não cadastrado',
+          400,
+        );
+      }
+
+      if (!payload.numero || !String(payload.numero).trim()) {
+        throw httpError(
+          'Número é obrigatório para cliente não cadastrado',
+          400,
+        );
+      }
+
+      if (!payload.bairro || !String(payload.bairro).trim()) {
+        throw httpError(
+          'Bairro é obrigatório para cliente não cadastrado',
+          400,
+        );
+      }
+
+      if (!payload.cidade || !String(payload.cidade).trim()) {
+        throw httpError(
+          'Cidade é obrigatória para cliente não cadastrado',
+          400,
+        );
+      }
+
+      if (!payload.cep || !String(payload.cep).trim()) {
+        throw httpError('CEP é obrigatório para cliente não cadastrado', 400);
+      }
+
+      const clienteCriado = await clienteRepository.create({
+        nome: payload.nome_completo,
+        nome_fantasia: payload.clienteNome,
+        telefone: payload.telefone,
+        email: payload.email,
+        cpf_cnpj: payload.cpf_cnpj,
+        endereco: payload.endereco,
+        numero: payload.numero,
+        bairro: payload.bairro,
+        cidade: payload.cidade,
+        cep: payload.cep,
+      });
+
+      clienteId = clienteCriado.id;
+    }
+
+    if (!payload.tipo_entrega) {
+      throw httpError('Tipo de entrega é obrigatório', 400);
+    }
+
+    if (
+      payload.tipo_entrega === 'transportadora' &&
+      !payload.transportadora_id &&
+      !String(payload.transportadora_nome_manual || '').trim()
+    ) {
+      throw httpError(
+        'Selecione uma transportadora ou informe uma manualmente',
+        400,
+      );
+    }
+
+    await orcamentoRepository.updateStatus(id, 'aprovado');
+
+    const venda = await vendaService.createFromOrcamento(id, {
+      cliente_id: clienteId,
+      tipo_entrega: payload.tipo_entrega,
+      transportadora_id: payload.transportadora_id || null,
+      transportadora_nome_manual: payload.transportadora_nome_manual || '',
+      observacoes_entrega: payload.observacoes_entrega || '',
+      prazo_entrega: payload.prazo_entrega || null,
+    });
+
+    return {
+      message: 'Orçamento aprovado e venda gerada com sucesso',
+      venda_id: venda.id,
+    };
   },
 };

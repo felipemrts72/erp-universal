@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { pool } from '../database/pool.js';
 import { httpError } from '../utils/httpError.js';
+import { funcionarioRepository } from '../repositories/funcionarioRepository.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -68,35 +69,60 @@ function validarCPF(cpf) {
 }
 
 export const funcionarioService = {
-  async create({ nome, cpf, telefone, email, setor, foto }) {
+  async create({
+    nome,
+    cpf,
+    telefone,
+    email,
+    setor,
+    foto,
+    salario,
+    insalubridade,
+  }) {
     const client = await pool.connect();
 
     try {
       await client.query('BEGIN');
 
-      // 🔥 valida nome
       if (!nome) throw httpError('Nome obrigatório');
 
-      // 🔥 valida CPF
       cpf = limparCPF(cpf);
       if (!validarCPF(cpf)) {
         throw httpError('CPF inválido');
       }
 
+      if (salario !== undefined && salario !== null && Number(salario) < 0) {
+        throw httpError('Salário inválido');
+      }
+
+      if (
+        insalubridade !== undefined &&
+        insalubridade !== null &&
+        Number(insalubridade) < 0
+      ) {
+        throw httpError('Insalubridade inválida');
+      }
+
       // 🔥 salva foto
       const fotoUrl = foto ? salvarFoto(foto) : null;
 
-      const { rows } = await client.query(
-        `INSERT INTO funcionarios
-         (nome, cpf, telefone, email, setor, foto_url)
-         VALUES ($1,$2,$3,$4,$5,$6)
-         RETURNING *`,
-        [nome, cpf, telefone, email, setor, fotoUrl],
+      const funcionario = await funcionarioRepository.create(
+        {
+          nome,
+          cpf,
+          telefone,
+          email,
+          setor,
+          foto_url: fotoUrl,
+          salario,
+          insalubridade,
+        },
+        client,
       );
 
       await client.query('COMMIT');
 
-      return rows[0];
+      return funcionario;
     } catch (err) {
       await client.query('ROLLBACK');
 
@@ -111,10 +137,7 @@ export const funcionarioService = {
   },
 
   async list() {
-    const { rows } = await pool.query(
-      `SELECT * FROM funcionarios WHERE status = 'ativo' ORDER BY nome`,
-    );
-    return rows;
+    return funcionarioRepository.list();
   },
 
   async update(id, payload) {
@@ -133,65 +156,50 @@ export const funcionarioService = {
         throw httpError('CPF inválido');
       }
     }
+    if (
+      payload.salario !== undefined &&
+      payload.salario !== null &&
+      Number(payload.salario) < 0
+    ) {
+      throw httpError('Salário inválido');
+    }
 
-    const { rows } = await pool.query(
-      `UPDATE funcionarios
-       SET nome = COALESCE($1, nome),
-           cpf = COALESCE($2, cpf),
-           telefone = COALESCE($3, telefone),
-           email = COALESCE($4, email),
-           setor = COALESCE($5, setor),
-           foto_url = COALESCE($6, foto_url)
-       WHERE id = $7
-       RETURNING *`,
-      [
-        payload.nome,
-        cpf,
-        payload.telefone,
-        payload.email,
-        payload.setor,
-        fotoUrl,
-        id,
-      ],
-    );
+    if (
+      payload.insalubridade !== undefined &&
+      payload.insalubridade !== null &&
+      Number(payload.insalubridade) < 0
+    ) {
+      throw httpError('Insalubridade inválida');
+    }
 
-    if (!rows.length) throw httpError('Funcionário não encontrado');
+    const funcionario = await funcionarioRepository.update(id, {
+      nome: payload.nome,
+      cpf,
+      telefone: payload.telefone,
+      email: payload.email,
+      setor: payload.setor,
+      foto_url: fotoUrl,
+      salario: payload.salario,
+      insalubridade: payload.insalubridade,
+    });
 
-    return rows[0];
+    if (!funcionario) throw httpError('Funcionário não encontrado');
+
+    return funcionario;
   },
 
   async delete(id) {
-    const { rows } = await pool.query(
-      `UPDATE funcionarios
-       SET status = 'inativo'
-       WHERE id = $1
-       RETURNING *`,
-      [id],
-    );
+    const funcionario = await funcionarioRepository.delete(id);
 
-    return rows[0];
+    if (!funcionario) {
+      throw httpError('Funcionário não encontrado', 404);
+    }
+
+    return funcionario;
   },
 
   async buscar(q) {
     if (!q) return [];
-
-    const { rows } = await pool.query(
-      `
-      SELECT *
-      FROM funcionarios
-      WHERE status = 'ativo'
-      AND (
-        nome ILIKE $1 OR
-        cpf ILIKE $1 OR
-        telefone ILIKE $1 OR
-        email ILIKE $1
-      )
-      ORDER BY nome
-      LIMIT 20
-      `,
-      [`%${q}%`],
-    );
-
-    return rows;
+    return funcionarioRepository.buscar(q);
   },
 };

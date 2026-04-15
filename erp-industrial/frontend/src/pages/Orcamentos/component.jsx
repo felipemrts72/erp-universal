@@ -6,12 +6,15 @@ import StatusBadge from '../../components/StatusBadge';
 import BuscaManual from '../../components/BuscaManual';
 import LoadingModal from '../../components/LoadingModal';
 import OrcamentoFinalizarModal from '../../components/OrcamentoFinalizarModal';
+import ModalSelecao from '../../components/ModalSelecao';
 import {
   gerarHtmlDocumento,
   imprimirDocumento,
 } from '../../utils/documentoPrint';
 import OrcamentoItemContextMenu from '../../components/OrcamentoItemContextMenu';
 import OrcamentoItemEditarModal from '../../components/OrcamentoItemEditarModal';
+import { useToast } from '../../contexts/ToastContext';
+
 import './style.css';
 
 const initialItem = {
@@ -37,6 +40,7 @@ function formatMoney(value) {
 }
 
 export default function Orcamentos() {
+  const { showToast } = useToast();
   const [orcamentos, setOrcamentos] = useState([]);
   const [clienteNome, setClienteNome] = useState('');
   const [clienteId, setClienteId] = useState(null);
@@ -50,8 +54,6 @@ export default function Orcamentos() {
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   const [modalVendaOpen, setModalVendaOpen] = useState(false);
   const [descontoGeralVenda, setDescontoGeralVenda] = useState(0);
@@ -71,23 +73,130 @@ export default function Orcamentos() {
   const [modoFormulario, setModoFormulario] = useState('novo');
   const [orcamentoEditandoId, setOrcamentoEditandoId] = useState(null);
 
+  const [modalClienteOpen, setModalClienteOpen] = useState(false);
+
+  const [vendaForm, setVendaForm] = useState({
+    tipo_entrega: 'retirada',
+    transportadora_id: null,
+    transportadora_nome_manual: '',
+    observacoes_entrega: '',
+    prazo_entrega: '',
+  });
+
   const load = async () => {
     try {
       setLoading(true);
       const { data } = await api.get('/orcamentos');
       setOrcamentos(Array.isArray(data) ? data : data?.items || []);
-      setError('');
     } catch (err) {
       console.error(err);
-      setError('Erro ao carregar orçamentos');
+      showToast('Error ao carregar orçamentos', 'error');
     } finally {
       setLoading(false);
     }
   };
 
+  const [modalAprovacaoOpen, setModalAprovacaoOpen] = useState(false);
+  const [orcamentoAprovando, setOrcamentoAprovando] = useState(null);
+
+  const [aprovacaoForm, setAprovacaoForm] = useState({
+    nome_completo: '',
+    telefone: '',
+    email: '',
+    cpf_cnpj: '',
+    endereco: '',
+    numero: '',
+    bairro: '',
+    cidade: '',
+    cep: '',
+    tipo_entrega: 'retirada',
+    transportadora_id: null,
+    transportadora_nome_manual: '',
+    observacoes_entrega: '',
+    prazo_entrega: '',
+  });
+
+  const [transportadoras, setTransportadoras] = useState([]);
+  const [usarTransportadoraManual, setUsarTransportadoraManual] =
+    useState(false);
+
   useEffect(() => {
     load();
+    loadTransportadoras();
   }, []);
+
+  const loadTransportadoras = async () => {
+    try {
+      const { data } = await api.get('/transportadoras?somenteAtivas=true');
+      setTransportadoras(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      showToast('Erro ao carregar transportadoras', 'error');
+      setTransportadoras([]);
+    }
+  };
+
+  const abrirModalAprovacao = async (row) => {
+    try {
+      setLoading(true);
+
+      const { data } = await api.get(`/orcamentos/${row.id}`);
+
+      setOrcamentoAprovando(data);
+
+      setAprovacaoForm({
+        nome_completo: data.nome || '',
+        telefone: data.telefone || '',
+        email: data.email || '',
+        cpf_cnpj: data.cpf_cnpj || '',
+        endereco: data.endereco || '',
+        numero: data.numero || '',
+        bairro: data.bairro || '',
+        cidade: data.cidade || '',
+        cep: data.cep || '',
+        tipo_entrega: 'retirada',
+        transportadora_id: null,
+        transportadora_nome_manual: '',
+        observacoes_entrega: '',
+        prazo_entrega: '',
+      });
+
+      setModalAprovacaoOpen(true);
+    } catch (err) {
+      console.error(err);
+      showToast('Erro ao carregar dados do orçamento', 'error');
+    } finally {
+      setLoading(false);
+    }
+
+    setUsarTransportadoraManual(false);
+  };
+
+  const confirmarAprovacao = async () => {
+    if (!orcamentoAprovando) return;
+
+    try {
+      setLoading(true);
+
+      await api.post(
+        `/orcamentos/${orcamentoAprovando.id}/aprovar`,
+        aprovacaoForm,
+      );
+
+      fecharModalAprovacao();
+      await load();
+
+      showToast('Orçamento aprovado e venda gerada com sucesso', 'success');
+    } catch (err) {
+      console.error(err);
+      showToast(
+        err?.response?.data?.message || 'Erro ao aprovar orçamento',
+        'error',
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const totais = useMemo(() => {
     const bruto = itens.reduce(
@@ -161,25 +270,29 @@ export default function Orcamentos() {
   }, [itens, descontoGeralVenda]);
 
   const handleProdutoSelect = (id, item) => {
+    console.log('handleProdutoSelect -> antes', item);
+
     if (item?.tipo === 'consumivel') {
-      setError('Consumíveis não podem ser adicionados ao orçamento');
+      showToast('Consumíveis não podem ser adicionados ao orçamento', 'error');
       return;
     }
 
-    setError('');
-    setItemForm((prev) => ({
-      ...prev,
-      produto_id: id,
-      produto_nome: item?.nome || '',
-      nome_customizado: item?.nome || '',
-      preco_unitario: toNumber(item?.preco_venda ?? item?.preco ?? 0),
-    }));
+    setItemForm((prev) => {
+      const proximo = {
+        ...prev,
+        produto_id: id,
+        produto_nome: item?.nome || '',
+        nome_customizado: item?.nome || '',
+        preco_unitario: toNumber(item?.preco_venda ?? item?.preco ?? 0),
+      };
+      console.log('handleProdutoSelect -> depois', proximo);
+      return proximo;
+    });
   };
 
   const handleClienteSelect = (id, item) => {
     setClienteId(id || null);
-    setClienteNome(item?.nome || '');
-    setError('');
+    setClienteNome(item?.nome_fantasia || item?.nome || '');
   };
 
   const handleItemChange = (field, value) => {
@@ -190,21 +303,19 @@ export default function Orcamentos() {
   };
 
   const adicionarItem = () => {
-    setError('');
-    setSuccess('');
-
+    console.log('adicionarItem -> itemForm atual', itemForm);
     if (!itemForm.produto_id) {
-      setError('Selecione um produto');
+      showToast('Selecione um produto', 'error');
       return;
     }
 
     if (toNumber(itemForm.quantidade) <= 0) {
-      setError('Quantidade inválida');
+      showToast('Quantidade inválida', 'error');
       return;
     }
 
     if (toNumber(itemForm.preco_unitario) < 0) {
-      setError('Preço inválido');
+      showToast('Preço inválido', 'error');
       return;
     }
 
@@ -235,21 +346,17 @@ export default function Orcamentos() {
     setBuscaId(null);
     setModoFormulario('novo');
     setOrcamentoEditandoId(null);
-    setError('');
-    setSuccess('');
+    setModalClienteOpen(false);
   };
 
   const abrirModalSalvar = () => {
-    setError('');
-    setSuccess('');
-
     if (!clienteNome.trim()) {
-      setError('Informe o nome do cliente');
+      showToast('Informe o nome do cliente', 'error');
       return;
     }
 
     if (!itens.length) {
-      setError('Adicione pelo menos um item ao orçamento');
+      showToast('Adicione pelo menos um item ao orçamento', 'error');
       return;
     }
 
@@ -258,23 +365,28 @@ export default function Orcamentos() {
 
   const abrirModalVenda = () => {
     if (!clienteNome.trim()) {
-      setError('Informe o nome do cliente');
+      showToast('Informe o nome do cliente', 'error');
       return;
     }
 
     if (!itens.length) {
-      setError('Adicione pelo menos um item ao orçamento');
+      showToast('Adicione pelo menos um item ao orçamento', 'error');
       return;
     }
 
     setDescontoGeralVenda(descontoGeral || 0);
+    setVendaForm({
+      tipo_entrega: 'retirada',
+      transportadora_id: null,
+      transportadora_nome_manual: '',
+      observacoes_entrega: '',
+      prazo_entrega: '',
+    });
+    setUsarTransportadoraManual(false);
     setModalVendaOpen(true);
   };
 
   const confirmarSalvarOrcamento = async ({ descontoGeral: descontoModal }) => {
-    setError('');
-    setSuccess('');
-
     const payload = {
       clienteNome,
       cliente_id: clienteId || null,
@@ -344,10 +456,11 @@ export default function Orcamentos() {
 
       setModalImpressaoOpen(true);
       setDescontoGeral(descontoModal);
-      setSuccess(
+      showToast(
         modoFormulario === 'edicao'
           ? 'Orçamento atualizado com sucesso'
           : 'Orçamento salvo com sucesso',
+        'success',
       );
       setModoFormulario('novo');
       setOrcamentoEditandoId(null);
@@ -356,20 +469,47 @@ export default function Orcamentos() {
       await load();
     } catch (err) {
       console.error(err);
-      setError(err?.response?.data?.message || 'Erro ao salvar orçamento');
+      showToast(
+        err?.response?.data?.message || 'Erro ao salvar orçamento',
+        'error',
+      );
     } finally {
       setSaving(false);
     }
   };
 
   const lancarVenda = async () => {
-    setError('');
-    setSuccess('');
+    if (!vendaForm.tipo_entrega) {
+      showToast('Informe o tipo de entrega', 'error');
+      return;
+    }
 
+    if (
+      vendaForm.tipo_entrega === 'transportadora' &&
+      !vendaForm.transportadora_id &&
+      !String(vendaForm.transportadora_nome_manual || '').trim()
+    ) {
+      showToast(
+        'Selecione uma transportadora ou informe uma manualmente',
+        'error',
+      );
+      return;
+    }
     const payload = {
       clienteNome,
       cliente_id: clienteId || null,
       desconto_geral: toNumber(descontoGeralVenda),
+      tipo_entrega: vendaForm.tipo_entrega || 'retirada',
+      transportadora_id:
+        vendaForm.tipo_entrega === 'transportadora'
+          ? vendaForm.transportadora_id || null
+          : null,
+      transportadora_nome_manual:
+        vendaForm.tipo_entrega === 'transportadora'
+          ? vendaForm.transportadora_nome_manual || ''
+          : '',
+      observacoes_entrega: vendaForm.observacoes_entrega || '',
+      prazo_entrega: vendaForm.prazo_entrega || null,
       itens: itens.map((item) => ({
         produto_id: item.produto_id,
         quantidade: toNumber(item.quantidade),
@@ -426,7 +566,7 @@ export default function Orcamentos() {
       });
 
       setModalImpressaoOpen(true);
-      setSuccess('Venda lançada com sucesso');
+      showToast('Venda lançada com sucesso', 'success');
       setModalVendaOpen(false);
       setClienteNome('');
       setClienteId(null);
@@ -435,9 +575,21 @@ export default function Orcamentos() {
       setDescontoGeral(0);
       setDescontoGeralVenda(0);
 
+      setVendaForm({
+        tipo_entrega: 'retirada',
+        transportadora_id: null,
+        transportadora_nome_manual: '',
+        observacoes_entrega: '',
+        prazo_entrega: '',
+      });
+      setUsarTransportadoraManual(false);
+
       await load();
     } catch (err) {
-      setError(err?.response?.data?.message || 'Erro ao lançar venda');
+      showToast(
+        err?.response?.data?.message || 'Erro ao lançar venda',
+        'error',
+      );
     } finally {
       setLoadingVenda(false);
     }
@@ -450,7 +602,7 @@ export default function Orcamentos() {
       await load();
     } catch (err) {
       console.error(err);
-      setError('Erro ao atualizar orçamento');
+      showToast('Erro ao atualizar orçamento', 'error');
     } finally {
       setLoading(false);
     }
@@ -570,11 +722,11 @@ export default function Orcamentos() {
       if (modo === 'edicao') {
         setModoFormulario('edicao');
         setOrcamentoEditandoId(data.id);
-        setSuccess(`Orçamento #${data.id} carregado para edição`);
+        showToast(`Orçamento #${data.id} carregado para edição`, 'success');
       } else {
         setModoFormulario('clone');
         setOrcamentoEditandoId(null);
-        setSuccess(`Orçamento #${data.id} carregado para clonagem`);
+        showToast(`Orçamento #${data.id} carregado para clonagem`, 'success');
       }
 
       window.scrollTo({
@@ -583,7 +735,7 @@ export default function Orcamentos() {
       });
     } catch (err) {
       console.error(err);
-      setError('Erro ao carregar orçamento');
+      showToast('Erro ao carregar orçamento', 'error');
     } finally {
       setLoading(false);
     }
@@ -594,11 +746,31 @@ export default function Orcamentos() {
   const clonarOrcamento = async (id) => {
     await carregarOrcamentoNoFormulario(id, 'clone');
   };
+
+  const fecharModalAprovacao = () => {
+    setModalAprovacaoOpen(false);
+    setOrcamentoAprovando(null);
+    setUsarTransportadoraManual(false);
+    setAprovacaoForm({
+      nome_completo: '',
+      telefone: '',
+      email: '',
+      cpf_cnpj: '',
+      endereco: '',
+      numero: '',
+      bairro: '',
+      cidade: '',
+      cep: '',
+      tipo_entrega: 'retirada',
+      transportadora_id: null,
+      transportadora_nome_manual: '',
+      observacoes_entrega: '',
+      prazo_entrega: '',
+    });
+  };
   return (
     <>
       {(loading || saving) && <LoadingModal />}
-      {error && <p className='error'>{error}</p>}
-      {success && <p className='success'>{success}</p>}
 
       <Card title='Pré-venda | Orçamento'>
         <div className='orcamentos-page'>
@@ -615,19 +787,23 @@ export default function Orcamentos() {
           )}
           <div className='orcamentos-page__top'>
             <div className='orcamentos-page__cliente'>
-              <div className='orcamentos-page__cliente'>
-                <BuscaManual
-                  endpoint='/clientes/busca'
-                  label='Nome do cliente'
-                  placeholder='Digite 3 letras, Enter ou clique na lupa'
-                  onSelect={handleClienteSelect}
-                  value={clienteNome}
-                  onChangeValue={(value) => {
-                    setClienteNome(value);
-                    setClienteId(null);
-                  }}
-                />
-              </div>
+              <input
+                className='orcamentos-page__input'
+                value={clienteNome}
+                onChange={(e) => {
+                  setClienteNome(e.target.value);
+                  setClienteId(null);
+                }}
+                placeholder='Digite o nome do cliente ou use a lupa'
+              />
+
+              <button
+                type='button'
+                className='btn btn--primary'
+                onClick={() => setModalClienteOpen(true)}
+              >
+                Buscar Clientes 🔍
+              </button>
             </div>
 
             <div className='orcamentos-page__totais'>
@@ -670,9 +846,23 @@ export default function Orcamentos() {
               <BuscaManual
                 endpoint='/produtos/busca'
                 label='Produto'
-                placeholder='Digite 3 letras e pressione Enter ou clique na lupa'
-                filterOptions={(item) => item.tipo !== 'consumivel'}
+                placeholder='Digite o nome do produto e pressione Enter'
+                extraParams={{ tipos: 'fabricado,revenda,conjunto' }}
                 onSelect={handleProdutoSelect}
+                value={itemForm.produto_nome}
+                onChangeValue={(value) =>
+                  setItemForm((prev) => {
+                    const proximo = {
+                      ...prev,
+                      produto_nome: value,
+                      produto_id:
+                        value === prev.produto_nome ? prev.produto_id : null,
+                    };
+
+                    console.log('onChangeValue produto ->', proximo);
+                    return proximo;
+                  })
+                }
               />
             </div>
 
@@ -843,7 +1033,7 @@ export default function Orcamentos() {
                       <>
                         <button
                           className='btn btn--primary'
-                          onClick={() => decide(row.id, 'aprovado')}
+                          onClick={() => abrirModalAprovacao(row)}
                           disabled={loading}
                         >
                           Aprovar
@@ -919,6 +1109,134 @@ export default function Orcamentos() {
               <div className='orcamentos-modal__row orcamentos-modal__row--total'>
                 <span>Total líquido</span>
                 <strong>{formatMoney(totaisVenda.liquido)}</strong>
+              </div>
+            </div>
+            <div className='orcamentos-modal__section'>
+              <h3 className='orcamentos-modal__section-title'>
+                Logística da venda
+              </h3>
+
+              <div className='orcamentos-modal__form-grid'>
+                <label className='orcamentos-modal__field'>
+                  <span>Tipo de entrega</span>
+                  <select
+                    value={vendaForm.tipo_entrega}
+                    onChange={(e) => {
+                      const value = e.target.value;
+
+                      if (value === 'retirada') {
+                        setUsarTransportadoraManual(false);
+                      }
+
+                      setVendaForm((prev) => ({
+                        ...prev,
+                        tipo_entrega: value,
+                        transportadora_id:
+                          value === 'retirada' ? null : prev.transportadora_id,
+                        transportadora_nome_manual:
+                          value === 'retirada'
+                            ? ''
+                            : prev.transportadora_nome_manual,
+                      }));
+                    }}
+                  >
+                    <option value='retirada'>Retirada</option>
+                    <option value='transportadora'>Transportadora</option>
+                  </select>
+                </label>
+
+                <label className='orcamentos-modal__field'>
+                  <span>Prazo de entrega</span>
+                  <input
+                    type='date'
+                    value={vendaForm.prazo_entrega}
+                    onChange={(e) =>
+                      setVendaForm((prev) => ({
+                        ...prev,
+                        prazo_entrega: e.target.value,
+                      }))
+                    }
+                  />
+                </label>
+
+                {vendaForm.tipo_entrega === 'transportadora' && (
+                  <>
+                    <label className='orcamentos-modal__field'>
+                      <span>Transportadora</span>
+                      <select
+                        value={
+                          usarTransportadoraManual
+                            ? 'outras'
+                            : vendaForm.transportadora_id || ''
+                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+
+                          if (value === 'outras') {
+                            setUsarTransportadoraManual(true);
+                            setVendaForm((prev) => ({
+                              ...prev,
+                              transportadora_id: null,
+                              transportadora_nome_manual: '',
+                            }));
+                            return;
+                          }
+
+                          setUsarTransportadoraManual(false);
+                          setVendaForm((prev) => ({
+                            ...prev,
+                            transportadora_id: value ? Number(value) : null,
+                            transportadora_nome_manual: '',
+                          }));
+                        }}
+                      >
+                        <option value=''>Selecione</option>
+
+                        {transportadoras.map((transportadora) => (
+                          <option
+                            key={transportadora.id}
+                            value={transportadora.id}
+                          >
+                            {transportadora.nome}
+                          </option>
+                        ))}
+
+                        <option value='outras'>Outras</option>
+                      </select>
+                    </label>
+
+                    {usarTransportadoraManual && (
+                      <label className='orcamentos-modal__field'>
+                        <span>Nome da transportadora</span>
+                        <input
+                          value={vendaForm.transportadora_nome_manual}
+                          onChange={(e) =>
+                            setVendaForm((prev) => ({
+                              ...prev,
+                              transportadora_nome_manual: e.target.value,
+                            }))
+                          }
+                          placeholder='Digite o nome da transportadora'
+                        />
+                      </label>
+                    )}
+                  </>
+                )}
+
+                <label className='orcamentos-modal__field orcamentos-modal__field--full'>
+                  <span>Observações de entrega</span>
+                  <textarea
+                    rows={3}
+                    value={vendaForm.observacoes_entrega}
+                    onChange={(e) =>
+                      setVendaForm((prev) => ({
+                        ...prev,
+                        observacoes_entrega: e.target.value,
+                      }))
+                    }
+                    placeholder='Ex.: cliente retira no pátio, entregar até sexta, ligar antes, etc.'
+                  />
+                </label>
               </div>
             </div>
 
@@ -1022,6 +1340,369 @@ export default function Orcamentos() {
           setItemEditando(null);
         }}
         onSave={salvarEdicaoItem}
+      />
+
+      {modalAprovacaoOpen && orcamentoAprovando && (
+        <div className='orcamentos-modal'>
+          <div
+            className='orcamentos-modal__backdrop'
+            onClick={fecharModalAprovacao}
+          />
+
+          <div className='orcamentos-modal__card'>
+            <h2 className='orcamentos-modal__title'>Aprovar orçamento</h2>
+            <p className='orcamentos-modal__subtitle'>
+              Complete os dados necessários para gerar a venda a partir deste
+              orçamento.
+            </p>
+
+            <div className='orcamentos-modal__summary'>
+              <div className='orcamentos-modal__summary-card'>
+                <span className='orcamentos-modal__summary-label'>
+                  Orçamento
+                </span>
+                <strong className='orcamentos-modal__summary-value'>
+                  #{orcamentoAprovando.id}
+                </strong>
+              </div>
+
+              <div className='orcamentos-modal__summary-card'>
+                <span className='orcamentos-modal__summary-label'>Cliente</span>
+                <strong className='orcamentos-modal__summary-value'>
+                  {orcamentoAprovando.cliente_nome || '-'}
+                </strong>
+              </div>
+
+              <div className='orcamentos-modal__summary-card'>
+                <span className='orcamentos-modal__summary-label'>Itens</span>
+                <strong className='orcamentos-modal__summary-value'>
+                  {orcamentoAprovando.itens?.length || 0}
+                </strong>
+              </div>
+
+              <div className='orcamentos-modal__summary-card'>
+                <span className='orcamentos-modal__summary-label'>
+                  Status atual
+                </span>
+                <strong className='orcamentos-modal__summary-value'>
+                  {orcamentoAprovando.status || '-'}
+                </strong>
+              </div>
+            </div>
+
+            {!orcamentoAprovando.cliente_id && (
+              <div className='orcamentos-modal__section'>
+                <h3 className='orcamentos-modal__section-title'>
+                  Dados do cliente
+                </h3>
+
+                <div className='orcamentos-modal__cliente-badge orcamentos-modal__cliente-badge--warning'>
+                  Cliente não cadastrado: este cliente será salvo no sistema ao
+                  aprovar
+                </div>
+
+                <label className='orcamentos-modal__field orcamentos-modal__field--full'>
+                  <span>Nome completo / Razão social</span>
+                  <input
+                    value={aprovacaoForm.nome_completo}
+                    onChange={(e) =>
+                      setAprovacaoForm((prev) => ({
+                        ...prev,
+                        nome_completo: e.target.value,
+                      }))
+                    }
+                    placeholder='Nome oficial do cliente para cadastro e documentos'
+                  />
+                </label>
+
+                <div className='orcamentos-modal__form-grid'>
+                  <label className='orcamentos-modal__field'>
+                    <span>Telefone</span>
+                    <input
+                      value={aprovacaoForm.telefone}
+                      onChange={(e) =>
+                        setAprovacaoForm((prev) => ({
+                          ...prev,
+                          telefone: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <label className='orcamentos-modal__field'>
+                    <span>E-mail</span>
+                    <input
+                      value={aprovacaoForm.email}
+                      onChange={(e) =>
+                        setAprovacaoForm((prev) => ({
+                          ...prev,
+                          email: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <label className='orcamentos-modal__field'>
+                    <span>CPF/CNPJ</span>
+                    <input
+                      value={aprovacaoForm.cpf_cnpj}
+                      onChange={(e) =>
+                        setAprovacaoForm((prev) => ({
+                          ...prev,
+                          cpf_cnpj: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <label className='orcamentos-modal__field'>
+                    <span>Endereço</span>
+                    <input
+                      value={aprovacaoForm.endereco}
+                      onChange={(e) =>
+                        setAprovacaoForm((prev) => ({
+                          ...prev,
+                          endereco: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <label className='orcamentos-modal__field'>
+                    <span>Número</span>
+                    <input
+                      value={aprovacaoForm.numero}
+                      onChange={(e) =>
+                        setAprovacaoForm((prev) => ({
+                          ...prev,
+                          numero: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <label className='orcamentos-modal__field'>
+                    <span>Bairro</span>
+                    <input
+                      value={aprovacaoForm.bairro}
+                      onChange={(e) =>
+                        setAprovacaoForm((prev) => ({
+                          ...prev,
+                          bairro: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <label className='orcamentos-modal__field'>
+                    <span>Cidade</span>
+                    <input
+                      value={aprovacaoForm.cidade}
+                      onChange={(e) =>
+                        setAprovacaoForm((prev) => ({
+                          ...prev,
+                          cidade: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <label className='orcamentos-modal__field'>
+                    <span>CEP</span>
+                    <input
+                      value={aprovacaoForm.cep}
+                      onChange={(e) =>
+                        setAprovacaoForm((prev) => ({
+                          ...prev,
+                          cep: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {orcamentoAprovando.cliente_id && (
+              <div className='orcamentos-modal__section'>
+                <h3 className='orcamentos-modal__section-title'>Cliente</h3>
+
+                <div className='orcamentos-modal__cliente-badge'>
+                  Cliente já cadastrado no sistema
+                </div>
+              </div>
+            )}
+
+            <div className='orcamentos-modal__section'>
+              <h3 className='orcamentos-modal__section-title'>
+                Logística da venda
+              </h3>
+
+              <div className='orcamentos-modal__form-grid'>
+                <label className='orcamentos-modal__field'>
+                  <span>Tipo de entrega</span>
+                  <select
+                    value={aprovacaoForm.tipo_entrega}
+                    onChange={(e) => {
+                      const value = e.target.value;
+
+                      if (value === 'retirada') {
+                        setUsarTransportadoraManual(false);
+                      }
+
+                      setAprovacaoForm((prev) => ({
+                        ...prev,
+                        tipo_entrega: value,
+                        transportadora_id:
+                          value === 'retirada' ? null : prev.transportadora_id,
+                        transportadora_nome_manual:
+                          value === 'retirada'
+                            ? ''
+                            : prev.transportadora_nome_manual,
+                      }));
+                    }}
+                  >
+                    <option value='retirada'>Retirada</option>
+                    <option value='transportadora'>Transportadora</option>
+                  </select>
+                </label>
+
+                <label className='orcamentos-modal__field'>
+                  <span>Prazo de entrega</span>
+                  <input
+                    type='date'
+                    value={aprovacaoForm.prazo_entrega}
+                    onChange={(e) =>
+                      setAprovacaoForm((prev) => ({
+                        ...prev,
+                        prazo_entrega: e.target.value,
+                      }))
+                    }
+                  />
+                </label>
+
+                {aprovacaoForm.tipo_entrega === 'transportadora' && (
+                  <>
+                    <label className='orcamentos-modal__field'>
+                      <span>Transportadora</span>
+                      <select
+                        value={
+                          usarTransportadoraManual
+                            ? 'outras'
+                            : aprovacaoForm.transportadora_id || ''
+                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+
+                          if (value === 'outras') {
+                            setUsarTransportadoraManual(true);
+                            setAprovacaoForm((prev) => ({
+                              ...prev,
+                              transportadora_id: null,
+                              transportadora_nome_manual: '',
+                            }));
+                            return;
+                          }
+
+                          setUsarTransportadoraManual(false);
+                          setAprovacaoForm((prev) => ({
+                            ...prev,
+                            transportadora_id: value ? Number(value) : null,
+                            transportadora_nome_manual: '',
+                          }));
+                        }}
+                      >
+                        <option value=''>Selecione</option>
+
+                        {transportadoras.map((transportadora) => (
+                          <option
+                            key={transportadora.id}
+                            value={transportadora.id}
+                          >
+                            {transportadora.nome}
+                          </option>
+                        ))}
+
+                        <option value='outras'>Outras</option>
+                      </select>
+                    </label>
+
+                    {usarTransportadoraManual && (
+                      <label className='orcamentos-modal__field'>
+                        <span>Nome da transportadora</span>
+                        <input
+                          value={aprovacaoForm.transportadora_nome_manual}
+                          onChange={(e) =>
+                            setAprovacaoForm((prev) => ({
+                              ...prev,
+                              transportadora_nome_manual: e.target.value,
+                            }))
+                          }
+                          placeholder='Digite o nome da transportadora'
+                        />
+                      </label>
+                    )}
+                  </>
+                )}
+
+                <label className='orcamentos-modal__field orcamentos-modal__field--full'>
+                  <span>Observações de entrega</span>
+                  <textarea
+                    rows={3}
+                    value={aprovacaoForm.observacoes_entrega}
+                    onChange={(e) =>
+                      setAprovacaoForm((prev) => ({
+                        ...prev,
+                        observacoes_entrega: e.target.value,
+                      }))
+                    }
+                    placeholder='Ex.: cliente retira no pátio, entregar até sexta, ligar antes, etc.'
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className='orcamentos-modal__actions'>
+              <button
+                className='btn btn--secondary'
+                type='button'
+                onClick={fecharModalAprovacao}
+              >
+                Cancelar
+              </button>
+
+              <button
+                className='btn btn--primary'
+                type='button'
+                onClick={confirmarAprovacao}
+                disabled={loading}
+              >
+                {loading ? 'Aprovando...' : 'Confirmar aprovação'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <ModalSelecao
+        open={modalClienteOpen}
+        title='Pesquisar cliente'
+        endpoint='/clientes/busca'
+        placeholder='Digite nome, nome fantasia, CPF/CNPJ ou telefone'
+        colunas={[
+          { key: 'id', label: 'ID' },
+          { key: 'nome_fantasia', label: 'Nome fantasia' },
+          { key: 'nome', label: 'Nome oficial' },
+          { key: 'cpf_cnpj', label: 'CPF/CNPJ' },
+        ]}
+        onClose={() => setModalClienteOpen(false)}
+        onConfirm={(item) => {
+          setClienteId(item.id);
+          setClienteNome(item.nome_fantasia || item.nome || '');
+          setModalClienteOpen(false);
+        }}
+        formatarValor={(item) =>
+          item.nome_fantasia || item.nome || `#${item.id}`
+        }
       />
     </>
   );

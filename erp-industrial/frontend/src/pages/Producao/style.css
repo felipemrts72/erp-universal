@@ -1,1 +1,137 @@
-/* estilos específicos de Produção */
+.producao-page__topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.producao-page__filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.producao-page__search {
+  min-width: 280px;
+  max-width: 420px;
+  width: 100%;
+  border: 1px solid #dbe1ea;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font: inherit;
+  background: #fff;
+}
+
+.producao-page__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.producao-page__card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.producao-page__card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.producao-page__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.producao-page__subtitle {
+  margin: 6px 0 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.producao-page__meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.producao-page__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.producao-page__meta-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.producao-page__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.producao-page__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.producao-page__badge--pending {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.producao-page__badge--progress {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.producao-page__badge--done {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.producao-page__empty {
+  padding: 24px;
+  border-radius: 16px;
+  background: #f8fafc;
+  color: #64748b;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .producao-page__meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .producao-page__search {
+    min-width: 100%;
+  }
+}

@@ -1,70 +1,110 @@
 import { pool } from '../database/pool.js';
 
 export const producaoRepository = {
-  async createOrdem({ produtoId, quantidade, status = 'pendente' }) {
+  async createOrdem({
+    produtoId,
+    vendaId = null,
+    quantidade,
+    status = 'pendente',
+  }) {
     const { rows } = await pool.query(
-      `INSERT INTO ordens_producao (produto_id, quantidade, status)
-       VALUES ($1,$2,$3)
+      `INSERT INTO ordens_producao (produto_id, venda_id, quantidade, status)
+       VALUES ($1,$2,$3,$4)
        RETURNING *`,
-      [produtoId, quantidade, status],
+      [produtoId, vendaId, quantidade, status],
     );
+
     return rows[0];
   },
 
   async getById(id) {
     const { rows } = await pool.query(
-      `SELECT op.*, p.nome AS produto_nome
+      `SELECT
+         op.*,
+         p.nome AS produto_nome,
+         v.cliente_nome
        FROM ordens_producao op
        INNER JOIN produtos p ON p.id = op.produto_id
-       WHERE op.id=$1`,
+       LEFT JOIN vendas v ON v.id = op.venda_id
+       WHERE op.id = $1`,
       [id],
     );
-    return rows[0];
+
+    return rows[0] || null;
   },
 
-  async updateStatus(id, status) {
-    const { rows } = await pool.query(
-      'UPDATE ordens_producao SET status=$1 WHERE id=$2 RETURNING *',
+  async getByIdWithClient(id, client) {
+    const { rows } = await client.query(
+      `SELECT
+         op.*,
+         p.nome AS produto_nome
+       FROM ordens_producao op
+       INNER JOIN produtos p ON p.id = op.produto_id
+       WHERE op.id = $1`,
+      [id],
+    );
+
+    return rows[0] || null;
+  },
+
+  async updateStatus(id, status, client = pool) {
+    const { rows } = await client.query(
+      `UPDATE ordens_producao
+       SET status = $1
+       WHERE id = $2
+       RETURNING *`,
       [status, id],
     );
-    return rows[0];
+
+    return rows[0] || null;
   },
 
   async list() {
     const { rows } = await pool.query(
-      `SELECT op.*, p.nome AS produto_nome
+      `SELECT
+         op.*,
+         p.nome AS produto_nome,
+         v.cliente_nome
        FROM ordens_producao op
        INNER JOIN produtos p ON p.id = op.produto_id
-       ORDER BY op.id DESC`,
+       LEFT JOIN vendas v ON v.id = op.venda_id
+       ORDER BY
+         CASE
+           WHEN op.status = 'em_producao' THEN 1
+           WHEN op.status = 'pendente' THEN 2
+           WHEN op.status = 'finalizado' THEN 3
+           ELSE 4
+         END,
+         op.id DESC`,
     );
+
     return rows;
   },
 
-  async houveRetiradaInsumos(ordemId) {
-    const { rows } = await pool.query(
-      `SELECT COUNT(*)::int AS total
-       FROM movimentos_estoque
-       WHERE referencia_tipo = 'ordem_producao_retirada'
-         AND referencia_id = $1
-         AND tipo_movimento = 'saida'`,
-      [ordemId],
-    );
-    return rows[0].total > 0;
-  },
-  async getByIdWithClient(id, client) {
+  async finalizar(id, client = pool) {
     const { rows } = await client.query(
-      `SELECT * FROM ordens_producao WHERE id = $1`,
+      `UPDATE ordens_producao
+       SET status = 'finalizado'
+       WHERE id = $1
+       RETURNING *`,
       [id],
     );
-    return rows[0];
+
+    return rows[0] || null;
   },
 
-  async finalizar(id, client) {
-    await client.query(
-      `UPDATE ordens_producao
-     SET status = 'finalizado'
-     WHERE id = $1`,
-      [id],
+  async existeOrdemAbertaPorProduto(produtoId, client = pool) {
+    const { rows } = await client.query(
+      `
+    SELECT 1
+    FROM ordens_producao
+    WHERE produto_id = $1
+      AND status IN ('pendente', 'em_producao')
+    LIMIT 1
+    `,
+      [produtoId],
     );
+
+    return !!rows.length;
   },
 };

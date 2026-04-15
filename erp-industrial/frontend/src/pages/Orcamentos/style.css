@@ -227,6 +227,233 @@
   background: #e8f1ff;
   color: #1f4f9c;
 }
+.orcamentos-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.orcamentos-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(2px);
+}
+
+.orcamentos-modal__card {
+  position: relative;
+  z-index: 1;
+  width: min(1100px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.22);
+}
+
+.orcamentos-modal__title {
+  margin: 0 0 22px;
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.orcamentos-modal__subtitle {
+  margin: -8px 0 22px;
+  font-size: 15px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.orcamentos-modal__section {
+  margin-top: 22px;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  background: #f8fafc;
+}
+
+.orcamentos-modal__section-title {
+  margin: 0 0 16px;
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.orcamentos-modal__form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.orcamentos-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.orcamentos-modal__field--full {
+  grid-column: 1 / -1;
+}
+
+.orcamentos-modal__field span {
+  font-size: 14px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.orcamentos-modal__field input,
+.orcamentos-modal__field select,
+.orcamentos-modal__field textarea {
+  width: 100%;
+  min-height: 52px;
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
+  background: #fff;
+  padding: 14px 16px;
+  font: inherit;
+  color: #0f172a;
+  outline: none;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+.orcamentos-modal__field textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.orcamentos-modal__field input:focus,
+.orcamentos-modal__field select:focus,
+.orcamentos-modal__field textarea:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.18);
+}
+
+.orcamentos-modal__field input::placeholder,
+.orcamentos-modal__field textarea::placeholder {
+  color: #94a3b8;
+}
+
+.orcamentos-modal__cliente-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.orcamentos-modal__cliente-badge--warning {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.orcamentos-modal__summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.orcamentos-modal__summary-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.orcamentos-modal__summary-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.orcamentos-modal__summary-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.15;
+}
+
+.orcamentos-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.orcamentos-modal__actions .btn {
+  min-width: 180px;
+  min-height: 52px;
+  border-radius: 16px;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+@media (max-width: 1024px) {
+  .orcamentos-modal {
+    padding: 16px;
+    align-items: flex-start;
+  }
+
+  .orcamentos-modal__card {
+    width: 100%;
+    max-height: calc(100vh - 32px);
+    border-radius: 20px;
+    padding: 22px;
+  }
+
+  .orcamentos-modal__title {
+    font-size: 30px;
+  }
+
+  .orcamentos-modal__summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .orcamentos-modal__card {
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .orcamentos-modal__title {
+    font-size: 26px;
+  }
+
+  .orcamentos-modal__form-grid,
+  .orcamentos-modal__summary {
+    grid-template-columns: 1fr;
+  }
+
+  .orcamentos-modal__actions {
+    flex-direction: column-reverse;
+  }
+
+  .orcamentos-modal__actions .btn {
+    width: 100%;
+  }
+}
 
 @media (max-width: 1100px) {
   .orcamentos-page__top {

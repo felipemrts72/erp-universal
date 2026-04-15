@@ -3,8 +3,8 @@ import { httpError } from '../utils/httpError.js';
 
 export const clienteService = {
   async create(payload) {
-    if (!payload.nome) {
-      throw httpError('Nome do cliente é obrigatório');
+    if (!payload.nome || !String(payload.nome).trim()) {
+      throw httpError('Nome oficial / razão social é obrigatório');
     }
 
     return clienteRepository.create(payload);

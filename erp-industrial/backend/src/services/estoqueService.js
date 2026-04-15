@@ -188,12 +188,28 @@ export const estoqueService = {
 
       // 2. buscar produto
       const { rows } = await client.query(
-        'SELECT custo FROM produtos WHERE id = $1',
+        'SELECT custo, tipo FROM produtos WHERE id = $1',
         [produtoId],
       );
 
       if (!rows.length) {
         throw httpError('Produto não encontrado', 404);
+      }
+      const tipoProduto = rows[0].tipo;
+
+      if (tipoProduto === 'fabricado' || tipoProduto === 'conjunto') {
+        const existeOrdemAberta =
+          await producaoRepository.existeOrdemAbertaPorProduto(
+            produtoId,
+            client,
+          );
+
+        if (existeOrdemAberta) {
+          throw httpError(
+            'Não é permitido lançar entrada manual para este produto enquanto houver ordem de produção em aberto. Finalize a produção para dar entrada no estoque.',
+            400,
+          );
+        }
       }
 
       const custoAtual = Number(rows[0].custo || 0);

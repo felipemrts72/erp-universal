@@ -5,6 +5,7 @@ export const entregaController = {
     const result = await entregaService.listarPendentes();
     res.json(result);
   },
+
   async saidasHoje(req, res) {
     const result = await entregaService.listarSaidasHoje();
     res.json(result);
