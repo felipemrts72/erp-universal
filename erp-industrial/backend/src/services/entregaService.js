@@ -167,4 +167,21 @@ export const entregaService = {
       client.release();
     }
   },
+  async auditoriaResumo() {
+    return entregaRepository.auditoriaResumo();
+  },
+
+  async auditoriaDetalhe(id) {
+    const entrega = await entregaRepository.auditoriaDetalhe(Number(id));
+
+    if (!entrega) {
+      throw httpError('Entrega não encontrada', 404);
+    }
+
+    return entrega;
+  },
+
+  async auditoriaIndicadores() {
+    return entregaRepository.auditoriaIndicadores();
+  },
 };

@@ -125,6 +125,88 @@
   color: #64748b;
   text-align: center;
 }
+.producao-page__modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+}
+
+.producao-page__modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.producao-page__modal-card {
+  position: relative;
+  z-index: 1;
+  width: min(760px, calc(100% - 32px));
+  margin: 40px auto;
+  background: #fff;
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+
+.producao-page__modal-title {
+  margin: 0 0 18px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.producao-page__form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.producao-page__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.producao-page__field--full {
+  grid-column: 1 / -1;
+}
+
+.producao-page__field span {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.producao-page__field input,
+.producao-page__field select,
+.producao-page__field textarea {
+  width: 100%;
+  border: 1px solid #dbe1ea;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 14px;
+  background: #fff;
+}
+
+.producao-page__field textarea {
+  resize: vertical;
+  min-height: 140px;
+}
+
+.producao-page__modal-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .producao-page__form-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
 @media (max-width: 768px) {
   .producao-page__meta-grid {

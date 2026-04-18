@@ -27,4 +27,18 @@ export const entregaController = {
 
     res.json(result);
   },
+  async auditoriaResumo(req, res) {
+    const result = await entregaService.auditoriaResumo();
+    res.json(result);
+  },
+
+  async auditoriaDetalhe(req, res) {
+    const result = await entregaService.auditoriaDetalhe(Number(req.params.id));
+    res.json(result);
+  },
+
+  async auditoriaIndicadores(req, res) {
+    const result = await entregaService.auditoriaIndicadores();
+    res.json(result);
+  },
 };

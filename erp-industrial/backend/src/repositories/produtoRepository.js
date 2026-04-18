@@ -63,10 +63,31 @@ export const produtoRepository = {
   },
 
   async getById(id) {
-    const { rows } = await pool.query('SELECT * FROM produtos WHERE id = $1', [
-      id,
-    ]);
-    return rows[0];
+    const { rows } = await pool.query(
+      `
+      SELECT 
+        p.*,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'componente_id', cp.componente_id,
+              'nome', c.nome,
+              'quantidade', cp.quantidade,
+              'custo', c.custo
+            )
+          ) FILTER (WHERE cp.id IS NOT NULL),
+          '[]'
+        ) AS componentes
+      FROM produtos p
+      LEFT JOIN componentes_produto cp ON cp.produto_id = p.id
+      LEFT JOIN produtos c ON c.id = cp.componente_id
+      WHERE p.id = $1
+      GROUP BY p.id
+      `,
+      [id],
+    );
+
+    return rows[0] || null;
   },
 
   async buscarComponentes(produtoId, client = pool) {

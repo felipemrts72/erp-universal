@@ -1,0 +1,83 @@
+.pagamentos-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pagamentos-editor__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pagamentos-editor__title {
+  margin: 0;
+  font-size: 18px;
+}
+
+.pagamentos-editor__empty {
+  padding: 14px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  color: #64748b;
+  background: #f8fafc;
+}
+
+.pagamentos-editor__card {
+  border: 1px solid #dbe1ea;
+  border-radius: 14px;
+  padding: 14px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pagamentos-editor__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.pagamentos-editor__grid,
+.pagamentos-editor__dates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.pagamentos-editor__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pagamentos-editor__field span {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pagamentos-editor__field input,
+.pagamentos-editor__field select {
+  height: 42px;
+  border: 1px solid #dbe1ea;
+  border-radius: 10px;
+  padding: 0 12px;
+  background: #fff;
+}
+
+.pagamentos-editor__hint,
+.pagamentos-editor__summary {
+  font-size: 14px;
+  color: #334155;
+}
+
+.pagamentos-editor__summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 12px;
+}

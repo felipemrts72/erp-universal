@@ -338,4 +338,119 @@ export const entregaRepository = {
 
     return rows;
   },
+
+  async auditoriaResumo() {
+    const { rows } = await pool.query(`
+      SELECT
+        e.id,
+        e.venda_id,
+        e.ordem_producao_id,
+        e.produto_id,
+        e.quantidade,
+        e.status,
+        e.tipo,
+        e.transportadora_id,
+        e.transportadora_nome_manual,
+        e.nome_recebedor,
+        e.documento_recebedor,
+        e.placa_veiculo,
+        e.codigo_rastreio,
+        e.observacoes_saida,
+        e.foto_saida_url,
+        e.assinatura_saida_url,
+        e.criado_em,
+        e.entregue_em,
+        p.nome AS produto_nome,
+        v.cliente_nome,
+        v.prazo_entrega,
+        t.nome AS transportadora_nome,
+        u.nome AS usuario_nome
+      FROM entregas e
+      INNER JOIN produtos p ON p.id = e.produto_id
+      LEFT JOIN vendas v ON v.id = e.venda_id
+      LEFT JOIN transportadoras t ON t.id = e.transportadora_id
+      LEFT JOIN usuarios u ON u.id = e.usuario_id
+      ORDER BY e.id DESC
+    `);
+
+    return rows;
+  },
+
+  async auditoriaDetalhe(id) {
+    const { rows } = await pool.query(
+      `
+      SELECT
+        e.id,
+        e.venda_id,
+        e.ordem_producao_id,
+        e.produto_id,
+        e.quantidade,
+        e.status,
+        e.tipo,
+        e.transportadora_id,
+        e.transportadora_nome_manual,
+        e.nome_recebedor,
+        e.documento_recebedor,
+        e.placa_veiculo,
+        e.codigo_rastreio,
+        e.observacoes_saida,
+        e.foto_saida_url,
+        e.assinatura_saida_url,
+        e.criado_em,
+        e.entregue_em,
+        p.nome AS produto_nome,
+        v.cliente_nome,
+        v.prazo_entrega,
+        t.nome AS transportadora_nome,
+        u.nome AS usuario_nome
+      FROM entregas e
+      INNER JOIN produtos p ON p.id = e.produto_id
+      LEFT JOIN vendas v ON v.id = e.venda_id
+      LEFT JOIN transportadoras t ON t.id = e.transportadora_id
+      LEFT JOIN usuarios u ON u.id = e.usuario_id
+      WHERE e.id = $1
+      `,
+      [id],
+    );
+
+    return rows[0] || null;
+  },
+
+  async auditoriaIndicadores() {
+    const { rows: statusEntrega } = await pool.query(`
+      SELECT
+        status,
+        COUNT(*) AS total
+      FROM entregas
+      GROUP BY status
+      ORDER BY total DESC
+    `);
+
+    const { rows: porTipo } = await pool.query(`
+      SELECT
+        tipo,
+        COUNT(*) AS total
+      FROM entregas
+      GROUP BY tipo
+      ORDER BY total DESC
+    `);
+
+    const { rows: transportadorasMaisUsadas } = await pool.query(`
+      SELECT
+        COALESCE(t.nome, e.transportadora_nome_manual, 'Sem transportadora') AS transportadora,
+        COUNT(*) AS total
+      FROM entregas e
+      LEFT JOIN transportadoras t ON t.id = e.transportadora_id
+      WHERE e.tipo = 'transportadora'
+      GROUP BY COALESCE(t.nome, e.transportadora_nome_manual, 'Sem transportadora')
+      ORDER BY total DESC
+      LIMIT 10
+    `);
+
+    return {
+      statusEntrega,
+      porTipo,
+      transportadorasMaisUsadas,
+    };
+  },
 };

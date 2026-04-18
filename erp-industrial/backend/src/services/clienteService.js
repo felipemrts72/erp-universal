@@ -38,4 +38,13 @@ export const clienteService = {
     if (!q || q.length < 2) return [];
     return clienteRepository.buscar(q);
   },
+  async getById(id) {
+    const cliente = await clienteRepository.getById(id);
+
+    if (!cliente) {
+      throw httpError('Cliente não encontrado', 404);
+    }
+
+    return cliente;
+  },
 };

@@ -3,6 +3,7 @@ import { httpError } from '../utils/httpError.js';
 import { vendaService } from './vendaService.js';
 import { vendaRepository } from '../repositories/vendaRepository.js';
 import { clienteRepository } from '../repositories/clienteRepository.js';
+import { validarPagamentos } from '../utils/validarPagamentos.js';
 
 const templates = [
   {
@@ -37,68 +38,28 @@ export const orcamentoService = {
         throw httpError('Cada item precisa de produto_id e quantidade');
       }
 
-      if (item.preco_customizado == null && item.preco_unitario == null) {
-        throw httpError(
-          'Cada item precisa de preco_customizado ou preco_unitario',
-        );
-      }
-    });
-
-    return orcamentoRepository.create({
-      clienteNome: payload.clienteNome,
-      cliente_id: payload.cliente_id || null,
-      desconto_geral: payload.desconto_geral || 0,
-      itens: payload.itens,
-    });
-  },
-  async criarVenda(payload) {
-    if (
-      !payload.clienteNome ||
-      !Array.isArray(payload.itens) ||
-      !payload.itens.length
-    ) {
-      throw httpError('clienteNome e itens são obrigatórios');
-    }
-
-    payload.itens.forEach((item) => {
-      if (!item.produto_id || !item.quantidade) {
-        throw httpError('Cada item precisa de produto_id e quantidade');
-      }
-
       if (item.preco_unitario == null) {
         throw httpError('Cada item precisa de preco_unitario');
       }
     });
 
-    // 1. cria orçamento já aprovado
-    const orcamento = await orcamentoRepository.create({
+    validarPagamentos(payload.formas_pagamento || []);
+
+    return orcamentoRepository.create({
       clienteNome: payload.clienteNome,
       cliente_id: payload.cliente_id || null,
       desconto_geral: payload.desconto_geral || 0,
+      observacoes: payload.observacoes || '',
+      formas_pagamento: payload.formas_pagamento || [],
       itens: payload.itens,
     });
-
-    await orcamentoRepository.updateStatus(orcamento.id, 'aprovado');
-
-    // 2. cria venda a partir do orçamento aprovado
-    const venda = await vendaService.createFromOrcamento(orcamento.id, {
-      cliente_id: payload.cliente_id || null,
-      tipo_entrega: payload.tipo_entrega || 'retirada',
-      transportadora_id: payload.transportadora_id || null,
-      transportadora_nome_manual: payload.transportadora_nome_manual || '',
-      observacoes_entrega: payload.observacoes_entrega || '',
-      prazo_entrega: payload.prazo_entrega || null,
-    });
-    return {
-      message: 'Venda lançada com sucesso',
-      orcamento_id: orcamento.id,
-      venda_id: venda.id,
-    };
   },
+
   async buscar(q) {
     if (!q) return [];
     return orcamentoRepository.buscar(q);
   },
+
   async update(id, payload) {
     const orcamento = await orcamentoRepository.getWithItens(id);
 
@@ -118,8 +79,18 @@ export const orcamentoService = {
       throw httpError('clienteNome e itens são obrigatórios');
     }
 
-    return orcamentoRepository.updateCompleto(id, payload);
+    validarPagamentos(payload.formas_pagamento || []);
+
+    return orcamentoRepository.updateCompleto(id, {
+      clienteNome: payload.clienteNome,
+      cliente_id: payload.cliente_id || null,
+      desconto_geral: payload.desconto_geral || 0,
+      observacoes: payload.observacoes || '',
+      formas_pagamento: payload.formas_pagamento || [],
+      itens: payload.itens,
+    });
   },
+
   async clonar(id) {
     const original = await orcamentoRepository.getWithItens(id);
 
@@ -129,6 +100,8 @@ export const orcamentoService = {
       clienteNome: original.cliente_nome,
       cliente_id: original.cliente_id || null,
       desconto_geral: original.desconto_geral || 0,
+      observacoes: original.observacoes || '',
+      formas_pagamento: original.formas_pagamento || [],
       itens: original.itens.map((item) => ({
         produto_id: item.produto_id,
         quantidade: item.quantidade,
@@ -151,22 +124,17 @@ export const orcamentoService = {
       throw httpError('Orçamento não encontrado', 404);
     }
 
-    const atualizado = await orcamentoRepository.updateStatus(id, status);
-
     if (status === 'aprovado') {
-      const vendaExistente = await vendaRepository.getByOrcamentoId(id);
-
-      if (!vendaExistente) {
-        await vendaService.createFromOrcamento(id);
-      }
+      throw httpError('Use a rota de aprovação para aprovar um orçamento', 400);
     }
 
-    return atualizado;
+    return orcamentoRepository.updateStatus(id, status);
   },
 
   async templates() {
     return templates;
   },
+
   async getById(id) {
     const orcamento = await orcamentoRepository.getWithItens(id);
 
@@ -176,6 +144,7 @@ export const orcamentoService = {
 
     return orcamento;
   },
+
   async aprovar(id, payload) {
     const orcamento = await orcamentoRepository.getWithItens(id);
 
@@ -193,9 +162,15 @@ export const orcamentoService = {
     }
 
     let clienteId = orcamento.cliente_id || null;
-    let clienteNome = orcamento.cliente_nome || '';
 
     if (!clienteId) {
+      if (!payload.nome_completo || !String(payload.nome_completo).trim()) {
+        throw httpError(
+          'Nome completo é obrigatório para cliente não cadastrado',
+          400,
+        );
+      }
+
       if (!payload.telefone || !String(payload.telefone).trim()) {
         throw httpError(
           'Telefone é obrigatório para cliente não cadastrado',
@@ -251,7 +226,7 @@ export const orcamentoService = {
 
       const clienteCriado = await clienteRepository.create({
         nome: payload.nome_completo,
-        nome_fantasia: payload.clienteNome,
+        nome_fantasia: orcamento.cliente_nome,
         telefone: payload.telefone,
         email: payload.email,
         cpf_cnpj: payload.cpf_cnpj,
@@ -289,6 +264,8 @@ export const orcamentoService = {
       transportadora_nome_manual: payload.transportadora_nome_manual || '',
       observacoes_entrega: payload.observacoes_entrega || '',
       prazo_entrega: payload.prazo_entrega || null,
+      observacoes: orcamento.observacoes || '',
+      formas_pagamento: orcamento.formas_pagamento || [],
     });
 
     return {

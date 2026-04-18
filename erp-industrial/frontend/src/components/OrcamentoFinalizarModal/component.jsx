@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import FormasPagamentoEditor from '../FormasPagamentoEditor';
+import { createPagamentoItem, validarPagamentos } from '../../utils/pagamentos';
 import './style.css';
 
 function toNumber(value) {
@@ -19,7 +21,9 @@ export default function OrcamentoFinalizarModal({
   onConfirm,
   itens = [],
   descontoGeralInicial = 0,
-  modo = { modoFormulario },
+  observacoesInicial = '',
+  pagamentosIniciais = [],
+  modo = 'novo',
 }) {
   const [descontoGeralInput, setDescontoGeralInput] = useState(
     String(descontoGeralInicial || 0),
@@ -27,13 +31,23 @@ export default function OrcamentoFinalizarModal({
   const [descontoGeralAplicado, setDescontoGeralAplicado] = useState(
     toNumber(descontoGeralInicial),
   );
+  const [observacoes, setObservacoes] = useState(observacoesInicial || '');
+  const [pagamentos, setPagamentos] = useState(
+    pagamentosIniciais.length ? pagamentosIniciais : [createPagamentoItem()],
+  );
 
   useEffect(() => {
     if (open) {
       setDescontoGeralInput(String(descontoGeralInicial || 0));
       setDescontoGeralAplicado(toNumber(descontoGeralInicial));
+      setObservacoes(observacoesInicial || '');
+      setPagamentos(
+        pagamentosIniciais.length
+          ? pagamentosIniciais
+          : [createPagamentoItem()],
+      );
     }
-  }, [open, descontoGeralInicial]);
+  }, [open, descontoGeralInicial, observacoesInicial, pagamentosIniciais]);
 
   const totais = useMemo(() => {
     const listaItens = Array.isArray(itens) ? itens : [];
@@ -77,9 +91,18 @@ export default function OrcamentoFinalizarModal({
   };
 
   const handleConfirm = () => {
+    const erroPagamentos = validarPagamentos(pagamentos, totais.liquido);
+
+    if (erroPagamentos) {
+      window.alert(erroPagamentos);
+      return;
+    }
+
     if (typeof onConfirm === 'function') {
       onConfirm({
         descontoGeral: descontoGeralAplicado,
+        observacoes,
+        pagamentos,
         totais,
       });
     }
@@ -88,42 +111,42 @@ export default function OrcamentoFinalizarModal({
   if (!open) return null;
 
   return (
-    <div className="orcamento-modal__overlay" onClick={onClose}>
-      <div className="orcamento-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="orcamento-modal__header">
+    <div className='orcamento-modal__overlay' onClick={onClose}>
+      <div className='orcamento-modal' onClick={(e) => e.stopPropagation()}>
+        <div className='orcamento-modal__header'>
           <h2>Deseja finalizar este orçamento?</h2>
         </div>
 
-        <div className="orcamento-modal__body">
-          <div className="orcamento-modal__row">
+        <div className='orcamento-modal__body'>
+          <div className='orcamento-modal__row'>
             <span>Itens</span>
             <strong>{totais.quantidadeItens}</strong>
           </div>
 
-          <div className="orcamento-modal__row">
+          <div className='orcamento-modal__row'>
             <span>Total bruto</span>
             <strong>{formatMoney(totais.bruto)}</strong>
           </div>
 
-          <div className="orcamento-modal__row">
+          <div className='orcamento-modal__row'>
             <span>Desconto dos itens</span>
             <strong>{formatMoney(totais.descontoItens)}</strong>
           </div>
 
-          <div className="orcamento-modal__field">
-            <label className="orcamento-modal__label">Desconto geral</label>
+          <div className='orcamento-modal__field'>
+            <label className='orcamento-modal__label'>Desconto geral</label>
 
-            <div className="orcamento-modal__discount">
+            <div className='orcamento-modal__discount'>
               <input
-                className="orcamento-modal__input"
+                className='orcamento-modal__input'
                 value={descontoGeralInput}
                 onChange={(e) => setDescontoGeralInput(e.target.value)}
-                placeholder="0,00"
+                placeholder='0,00'
               />
 
               <button
-                type="button"
-                className="btn btn--secondary"
+                type='button'
+                className='btn btn--secondary'
                 onClick={aplicarDesconto}
               >
                 Aplicar desconto
@@ -131,27 +154,48 @@ export default function OrcamentoFinalizarModal({
             </div>
           </div>
 
-          <div className="orcamento-modal__row orcamento-modal__row--total">
+          <div className='orcamento-modal__row orcamento-modal__row--total'>
             <span>Total líquido</span>
             <strong>{formatMoney(totais.liquido)}</strong>
           </div>
+          <div className='orcamento-modal__field'>
+            <label className='orcamento-modal__label'>Observações</label>
+            <textarea
+              className='orcamento-modal__textarea'
+              rows={4}
+              maxLength={200}
+              value={observacoes}
+              onChange={(e) => setObservacoes(e.target.value)}
+              placeholder='Digite observações do orçamento'
+            />
+            <small className='orcamento-modal__hint'>
+              {observacoes.length}/200 caracteres
+            </small>
+          </div>
+
+          <FormasPagamentoEditor
+            pagamentos={pagamentos}
+            totalLiquido={totais.liquido}
+            onChange={setPagamentos}
+            titulo='Formas de pagamento'
+          />
         </div>
 
-        <div className="orcamento-modal__footer">
+        <div className='orcamento-modal__footer'>
           <button
-            type="button"
-            className="btn btn--secondary"
+            type='button'
+            className='btn btn--secondary'
             onClick={onClose}
           >
             Cancelar
           </button>
 
           <button
-            type="button"
-            className="btn btn--primary"
+            type='button'
+            className='btn btn--primary'
             onClick={handleConfirm}
           >
-            Lançar orçamento
+            {modo === 'edicao' ? 'Salvar alterações' : 'Salvar orçamento'}
           </button>
         </div>
       </div>

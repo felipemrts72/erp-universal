@@ -1,18 +1,33 @@
 import { pool } from '../database/pool.js';
 import { orcamentoMetaRepository } from './orcamentoMetaRepository.js';
+import { pagamentoRepository } from './pagamentoRepository.js';
 
 export const orcamentoRepository = {
-  async create({ clienteNome, cliente_id, desconto_geral = 0, itens }) {
+  async create({
+    clienteNome,
+    cliente_id,
+    desconto_geral = 0,
+    observacoes = '',
+    formas_pagamento = [],
+    itens,
+  }) {
     const client = await pool.connect();
 
     try {
       await client.query('BEGIN');
 
       const orcamento = await client.query(
-        `INSERT INTO orcamentos (cliente_nome, cliente_id, desconto_geral)
-       VALUES ($1, $2, $3)
-       RETURNING *`,
-        [clienteNome, cliente_id || null, desconto_geral || 0],
+        `
+        INSERT INTO orcamentos (cliente_nome, cliente_id, desconto_geral, observacoes)
+        VALUES ($1, $2, $3, $4)
+        RETURNING *
+        `,
+        [
+          clienteNome,
+          cliente_id || null,
+          desconto_geral || 0,
+          observacoes || '',
+        ],
       );
 
       const itensCriados = [];
@@ -34,7 +49,7 @@ export const orcamentoRepository = {
             orcamento.rows[0].id,
             item.produto_id,
             item.quantidade,
-            item.preco_customizado ?? item.preco_unitario,
+            item.preco_unitario,
             item.desconto_valor || 0,
             item.desconto_percentual || 0,
           ],
@@ -42,7 +57,11 @@ export const orcamentoRepository = {
 
         itensCriados.push(insert.rows[0]);
       }
-
+      await pagamentoRepository.substituirPagamentosOrcamento(
+        orcamento.rows[0].id,
+        formas_pagamento || [],
+        client,
+      );
       await client.query('COMMIT');
 
       return { ...orcamento.rows[0], itens: itensCriados };
@@ -55,7 +74,14 @@ export const orcamentoRepository = {
   },
   async updateCompleto(
     id,
-    { clienteNome, cliente_id, desconto_geral = 0, itens },
+    {
+      clienteNome,
+      cliente_id,
+      desconto_geral = 0,
+      observacoes = '',
+      formas_pagamento = [],
+      itens,
+    },
   ) {
     const client = await pool.connect();
 
@@ -67,10 +93,17 @@ export const orcamentoRepository = {
       UPDATE orcamentos
       SET cliente_nome = $1,
           cliente_id = $2,
-          desconto_geral = $3
-      WHERE id = $4
+          desconto_geral = $3,
+          observacoes = $4
+      WHERE id = $5
       `,
-        [clienteNome, cliente_id || null, desconto_geral, id],
+        [
+          clienteNome,
+          cliente_id || null,
+          desconto_geral,
+          observacoes || '',
+          id,
+        ],
       );
 
       await client.query(
@@ -107,6 +140,11 @@ export const orcamentoRepository = {
 
         itensCriados.push(insert.rows[0]);
       }
+      await pagamentoRepository.substituirPagamentosOrcamento(
+        id,
+        formas_pagamento || [],
+        client,
+      );
 
       await client.query('COMMIT');
 
@@ -115,6 +153,8 @@ export const orcamentoRepository = {
         cliente_nome: clienteNome,
         cliente_id,
         desconto_geral,
+        observacoes,
+        formas_pagamento,
         itens: itensCriados,
       };
     } catch (error) {
@@ -160,9 +200,14 @@ export const orcamentoRepository = {
     const nomesMap = await orcamentoMetaRepository.mapearNomes(
       itensResult.rows.map((i) => i.id),
     );
+    const formasPagamento = await pagamentoRepository.listarPagamentosOrcamento(
+      id,
+      pool,
+    );
 
     return {
       ...rows[0],
+      formas_pagamento: formasPagamento,
       itens: itensResult.rows.map((item) => ({
         ...item,
         produto_nome: item.produto_nome,

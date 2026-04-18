@@ -7,6 +7,7 @@ import { producaoRepository } from '../repositories/producaoRepository.js';
 import { reservaVendaRepository } from '../repositories/reservaVendaRepository.js';
 import { entregaRepository } from '../repositories/entregaRepository.js';
 import { httpError } from '../utils/httpError.js';
+import { validarPagamentos } from '../utils/validarPagamentos.js';
 
 function toNumber(value) {
   if (value === null || value === undefined || value === '') return 0;
@@ -74,6 +75,10 @@ export const vendaService = {
         transportadora_nome_manual: payload.transportadora_nome_manual || null,
         observacoes_entrega: payload.observacoes_entrega || null,
         prazo_entrega: payload.prazo_entrega || null,
+        observacoes: payload.observacoes || orcamento.observacoes || '',
+        desconto_geral: payload.desconto_geral ?? orcamento.desconto_geral ?? 0,
+        formas_pagamento:
+          payload.formas_pagamento || orcamento.formas_pagamento || [],
       },
     );
 
@@ -108,6 +113,7 @@ export const vendaService = {
           });
         }
       }
+
       await entregaRepository.criar({
         ordem_producao_id: null,
         venda_id: venda.id,
@@ -156,6 +162,8 @@ export const vendaService = {
         400,
       );
     }
+
+    validarPagamentos(payload.formas_pagamento || []);
 
     let clienteId = payload.cliente_id || null;
 
@@ -237,7 +245,14 @@ export const vendaService = {
       transportadora_nome_manual: payload.transportadora_nome_manual || null,
       observacoes_entrega: payload.observacoes_entrega || null,
       prazo_entrega: payload.prazo_entrega || null,
-      itens: payload.itens,
+      observacoes: payload.observacoes || '',
+      desconto_geral: payload.desconto_geral || 0,
+      formas_pagamento: payload.formas_pagamento || [],
+      itens: payload.itens.map((item) => ({
+        ...item,
+        desconto_valor: item.desconto_valor || 0,
+        desconto_percentual: item.desconto_percentual || 0,
+      })),
     });
 
     for (const item of payload.itens) {

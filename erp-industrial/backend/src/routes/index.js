@@ -29,16 +29,18 @@ router.post('/login', asyncHandler(authController.login));
 router.use(authMiddleware);
 router.use(normalizeNumbers);
 
+router.get('/auth/me', asyncHandler(authController.me));
 router.post('/usuarios', asyncHandler(authController.register));
 
 // PRODUTOS
 router.get('/produtos', asyncHandler(produtoController.list));
+router.get('/produtos/busca', asyncHandler(produtoController.buscar));
+router.get('/produtos/:id', asyncHandler(produtoController.getById));
 router.post('/produtos', asyncHandler(produtoController.create));
 router.post(
   '/produtos/:id/componentes',
   asyncHandler(produtoController.addComponente),
 );
-router.get('/produtos/busca', asyncHandler(produtoController.buscar));
 
 // ESTOQUE
 router.get('/estoque', asyncHandler(estoqueController.list));
@@ -87,7 +89,6 @@ router.get('/orcamentos/busca', asyncHandler(orcamentoController.buscar));
 router.get('/orcamentos/:id', asyncHandler(orcamentoController.getById));
 
 router.post('/orcamentos', asyncHandler(orcamentoController.create));
-router.post('/orcamentos/venda', asyncHandler(orcamentoController.venda));
 router.post('/orcamentos/:id/clonar', asyncHandler(orcamentoController.clonar));
 
 router.patch('/orcamentos/:id', asyncHandler(orcamentoController.update));
@@ -130,11 +131,27 @@ router.post('/producao/finalizar', asyncHandler(producaoController.finalizar));
 router.get('/relatorios-producao', asyncHandler(relatorioController.list));
 router.post(
   '/relatorios-producao',
-  upload.fields([
-    { name: 'foto', maxCount: 1 },
-    { name: 'assinatura', maxCount: 1 },
-  ]),
+  upload.fields([{ name: 'fotos', maxCount: 5 }]),
   asyncHandler(relatorioController.create),
+);
+
+// AUDITORIA-PRODUÇÃO
+router.get(
+  '/auditoria-producao',
+  isAdmin,
+  asyncHandler(relatorioController.auditoriaResumo),
+);
+
+router.get(
+  '/auditoria-producao/indicadores',
+  isAdmin,
+  asyncHandler(relatorioController.indicadores),
+);
+
+router.get(
+  '/auditoria-producao/:ordemId',
+  isAdmin,
+  asyncHandler(relatorioController.auditoriaDetalhe),
 );
 
 // DASHBOARD
@@ -160,6 +177,25 @@ router.get('/entregas', asyncHandler(entregaController.listar));
 router.patch(
   '/entregas/:id/entregar',
   asyncHandler(entregaController.entregar),
+);
+
+// AUDITORIA-ENTREGAS
+router.get(
+  '/auditoria-entregas',
+  isAdmin,
+  asyncHandler(entregaController.auditoriaResumo),
+);
+
+router.get(
+  '/auditoria-entregas/indicadores',
+  isAdmin,
+  asyncHandler(entregaController.auditoriaIndicadores),
+);
+
+router.get(
+  '/auditoria-entregas/:id',
+  isAdmin,
+  asyncHandler(entregaController.auditoriaDetalhe),
 );
 
 // TRANSPORTADORAS
@@ -190,7 +226,8 @@ router.delete(
 
 // CLIENTES
 router.post('/clientes', asyncHandler(clienteController.create));
+router.get('/clientes/busca', asyncHandler(clienteController.buscar));
+router.get('/clientes/:id', asyncHandler(clienteController.getById));
 router.get('/clientes', asyncHandler(clienteController.list));
 router.patch('/clientes/:id', asyncHandler(clienteController.update));
 router.delete('/clientes/:id', asyncHandler(clienteController.delete));
-router.get('/clientes/busca', asyncHandler(clienteController.buscar));

@@ -16,6 +16,15 @@ const initialForm = {
   precoVenda: '',
 };
 
+const tiposProdutoOptions = [
+  { value: '', label: 'Todos os tipos' },
+  { value: 'materia_prima', label: 'Matéria-prima' },
+  { value: 'revenda', label: 'Revenda' },
+  { value: 'fabricado', label: 'Fabricado' },
+  { value: 'conjunto', label: 'Conjunto' },
+  { value: 'consumivel', label: 'Consumível' },
+];
+
 function toNumber(value) {
   if (value === null || value === undefined || value === '') return 0;
   return Number(String(value).replace(',', '.')) || 0;
@@ -39,6 +48,9 @@ export default function Produtos() {
   const [componentes, setComponentes] = useState([]);
   const [componenteSelecionado, setComponenteSelecionado] = useState(null);
   const [quantidadeComponente, setQuantidadeComponente] = useState('');
+
+  const [produtoSelecionado, setProdutoSelecionado] = useState(null);
+  const [filtroTipoBusca, setFiltroTipoBusca] = useState('');
 
   const token = localStorage.getItem('token');
 
@@ -83,6 +95,51 @@ export default function Produtos() {
       ...prev,
       [field]: value,
     }));
+  };
+
+  const carregarProdutoNoFormulario = (produto) => {
+    if (!produto) return;
+
+    setProdutoSelecionado(produto);
+
+    setForm({
+      nome: produto.nome || '',
+      tipo: produto.tipo || 'materia_prima',
+      sku: produto.sku || '',
+      estoqueMinimo: produto.estoque_minimo ?? '',
+      custo: produto.custo ?? '',
+      unidadeMedida: produto.unidade_medida || 'UN',
+      precoVenda: produto.preco_venda ?? '',
+    });
+
+    setComponentes(
+      Array.isArray(produto.componentes)
+        ? produto.componentes.map((item) => ({
+            componenteId: item.componente_id,
+            nome: item.nome,
+            quantidade: toNumber(item.quantidade),
+            custo: toNumber(item.custo),
+          }))
+        : [],
+    );
+
+    setComponenteSelecionado(null);
+    setQuantidadeComponente('');
+    setError('');
+    setSuccess('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const buscarProdutoPorId = async (id) => {
+    try {
+      setLoading(true);
+      const { data } = await api.get(`/produtos/${id}`);
+      carregarProdutoNoFormulario(data);
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Erro ao carregar produto');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const adicionarComponente = () => {
@@ -191,17 +248,41 @@ export default function Produtos() {
     }
   };
 
+  const limparFormulario = () => {
+    setProdutoSelecionado(null);
+    setForm(initialForm);
+    setComponentes([]);
+    setComponenteSelecionado(null);
+    setQuantidadeComponente('');
+    setError('');
+    setSuccess('');
+  };
+
   return (
     <>
-      {error && <p className="error">{error}</p>}
-      {success && <p className="success">{success}</p>}
+      {error && <p className='error'>{error}</p>}
+      {success && <p className='success'>{success}</p>}
 
-      <Card title="Cadastrar produto">
+      <Card title='Cadastrar produto'>
+        {produtoSelecionado && (
+          <div className='produtos-page__edicao-alerta'>
+            Revisando produto #{produtoSelecionado.id} -{' '}
+            <strong>{produtoSelecionado.nome}</strong>
+            <button
+              type='button'
+              className='btn btn--secondary'
+              onClick={limparFormulario}
+              style={{ marginLeft: 12 }}
+            >
+              Novo produto
+            </button>
+          </div>
+        )}
         <form
-          className="form-grid produtos-page__form"
+          className='form-grid produtos-page__form'
           onSubmit={createProduto}
         >
-          <label className="form-control">
+          <label className='form-control'>
             Nome
             <input
               value={form.nome}
@@ -210,21 +291,21 @@ export default function Produtos() {
             />
           </label>
 
-          <label className="form-control">
+          <label className='form-control'>
             Tipo
             <select
               value={form.tipo}
               onChange={(e) => handleFormChange('tipo', e.target.value)}
             >
-              <option value="materia_prima">Matéria-prima</option>
-              <option value="revenda">Revenda</option>
-              <option value="fabricado">Fabricado</option>
-              <option value="conjunto">Conjunto</option>
-              <option value="consumivel">Consumível</option>
+              <option value='materia_prima'>Matéria-prima</option>
+              <option value='revenda'>Revenda</option>
+              <option value='fabricado'>Fabricado</option>
+              <option value='conjunto'>Conjunto</option>
+              <option value='consumivel'>Consumível</option>
             </select>
           </label>
 
-          <label className="form-control">
+          <label className='form-control'>
             SKU
             <input
               value={form.sku}
@@ -232,12 +313,12 @@ export default function Produtos() {
             />
           </label>
 
-          <label className="form-control">
+          <label className='form-control'>
             Estoque mínimo
             <input
-              type="number"
-              min="0"
-              step="0.01"
+              type='number'
+              min='0'
+              step='0.01'
               value={form.estoqueMinimo}
               onChange={(e) =>
                 handleFormChange('estoqueMinimo', e.target.value)
@@ -245,19 +326,19 @@ export default function Produtos() {
             />
           </label>
 
-          <label className="form-control">
+          <label className='form-control'>
             Custo
             <input
-              type="number"
-              min="0"
-              step="0.01"
+              type='number'
+              min='0'
+              step='0.01'
               value={mostrarBlocoComponentes ? custoCalculado : form.custo}
               onChange={(e) => handleFormChange('custo', e.target.value)}
               disabled={mostrarBlocoComponentes}
             />
           </label>
 
-          <label className="form-control">
+          <label className='form-control'>
             Unidade
             <select
               value={form.unidadeMedida}
@@ -265,20 +346,20 @@ export default function Produtos() {
                 handleFormChange('unidadeMedida', e.target.value)
               }
             >
-              <option value="UN">UN</option>
-              <option value="KG">KG</option>
-              <option value="PAR">PAR</option>
-              <option value="MT">MT</option>
+              <option value='UN'>UN</option>
+              <option value='KG'>KG</option>
+              <option value='PAR'>PAR</option>
+              <option value='MT'>MT</option>
             </select>
           </label>
 
           {podeVerPrecoVenda && (
-            <label className="form-control">
+            <label className='form-control'>
               Preço de venda
               <input
-                type="number"
-                min="0"
-                step="0.01"
+                type='number'
+                min='0'
+                step='0.01'
                 value={form.precoVenda}
                 onChange={(e) => handleFormChange('precoVenda', e.target.value)}
                 required={form.tipo !== 'consumivel'}
@@ -286,51 +367,49 @@ export default function Produtos() {
             </label>
           )}
 
-          <div className="produtos-page__submit">
+          <div className='produtos-page__submit'>
             <button
-              className="btn btn--primary"
-              type="submit"
+              className='btn btn--primary'
+              type='submit'
               disabled={loading}
             >
-              {loading ? 'Salvando...' : 'Criar produto'}
+              {loading
+                ? 'Salvando...'
+                : produtoSelecionado
+                  ? 'Salvar como novo / revisar'
+                  : 'Criar produto'}
             </button>
           </div>
         </form>
       </Card>
 
       {mostrarBlocoComponentes && (
-        <Card title="Componentes do produto">
-          <div className="produtos-page__componentes-form">
+        <Card title='Componentes do produto'>
+          <div className='produtos-page__componentes-form'>
             <BuscaManual
-              endpoint="/produtos/busca"
-              label="Buscar componente"
-              placeholder="Digite pelo menos 3 letras"
-              filterOptions={(item) =>
-                item.tipo === 'materia_prima' || item.tipo === 'revenda'
-              }
-              onSelect={(id, item) =>
-                setComponenteSelecionado({
-                  id,
-                  ...item,
-                })
-              }
+              endpoint='/produtos/busca'
+              label='Buscar produto'
+              placeholder='Digite o nome do produto e pressione Enter'
+              onSelect={(id) => {
+                buscarProdutoPorId(id);
+              }}
             />
 
-            <label className="form-control">
+            <label className='form-control'>
               Quantidade
               <input
-                type="number"
-                min="0.01"
-                step="0.01"
+                type='number'
+                min='0.01'
+                step='0.01'
                 value={quantidadeComponente}
                 onChange={(e) => setQuantidadeComponente(e.target.value)}
               />
             </label>
 
-            <div className="produtos-page__componentes-action">
+            <div className='produtos-page__componentes-action'>
               <button
-                className="btn btn--secondary"
-                type="button"
+                className='btn btn--secondary'
+                type='button'
                 onClick={adicionarComponente}
               >
                 Adicionar componente
@@ -339,7 +418,7 @@ export default function Produtos() {
           </div>
 
           {componenteSelecionado && (
-            <div className="produtos-page__componente-selecionado">
+            <div className='produtos-page__componente-selecionado'>
               Componente selecionado:{' '}
               <strong>{componenteSelecionado.nome}</strong>
             </div>
@@ -362,7 +441,7 @@ export default function Produtos() {
                 label: 'Ações',
                 render: (_, row) => (
                   <button
-                    className="btn btn--secondary"
+                    className='btn btn--secondary'
                     onClick={() => removerComponente(row.componenteId)}
                   >
                     Remover
@@ -374,12 +453,12 @@ export default function Produtos() {
               ...item,
               acoes: item.componenteId,
             }))}
-            emptyText="Nenhum componente adicionado."
+            emptyText='Nenhum componente adicionado.'
           />
         </Card>
       )}
 
-      <Card title="Produtos cadastrados">
+      <Card title='Produtos cadastrados'>
         <DataTable
           columns={[
             { key: 'id', label: 'ID' },
@@ -394,6 +473,70 @@ export default function Produtos() {
           ]}
           rows={items}
         />
+      </Card>
+
+      <Card title='Pesquisar / revisar produto'>
+        <div className='produtos-page__busca-filtros'>
+          <label className='form-control produtos-page__busca-tipo'>
+            Tipo
+            <select
+              value={filtroTipoBusca}
+              onChange={(e) => setFiltroTipoBusca(e.target.value)}
+            >
+              {tiposProdutoOptions.map((option) => (
+                <option key={option.value || 'todos'} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className='produtos-page__busca-revisao'>
+          <BuscaManual
+            endpoint='/produtos/busca'
+            label='Buscar produto'
+            placeholder='Digite o nome do produto e pressione Enter'
+            extraParams={filtroTipoBusca ? { tipos: filtroTipoBusca } : {}}
+            onSelect={(id) => {
+              buscarProdutoPorId(id);
+            }}
+          />
+        </div>
+
+        {produtoSelecionado && (
+          <div className='produtos-page__produto-resumo'>
+            <p>
+              <strong>ID:</strong> {produtoSelecionado.id}
+            </p>
+            <p>
+              <strong>Nome:</strong> {produtoSelecionado.nome}
+            </p>
+            <p>
+              <strong>Tipo:</strong> {produtoSelecionado.tipo}
+            </p>
+            <p>
+              <strong>SKU:</strong> {produtoSelecionado.sku || '-'}
+            </p>
+            <p>
+              <strong>Custo:</strong> {produtoSelecionado.custo || 0}
+            </p>
+            {podeVerPrecoVenda && (
+              <p>
+                <strong>Preço de venda:</strong>{' '}
+                {produtoSelecionado.preco_venda || 0}
+              </p>
+            )}
+
+            <button
+              type='button'
+              className='btn btn--primary'
+              onClick={() => buscarProdutoPorId(produtoSelecionado.id)}
+            >
+              Carregar no formulário acima
+            </button>
+          </div>
+        )}
       </Card>
     </>
   );

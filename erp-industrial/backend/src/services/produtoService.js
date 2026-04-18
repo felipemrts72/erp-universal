@@ -70,7 +70,15 @@ export const produtoService = {
   async list() {
     return produtoRepository.list();
   },
+  async getById(id) {
+    const produto = await produtoRepository.getById(id);
 
+    if (!produto) {
+      throw httpError('Produto não encontrado', 404);
+    }
+
+    return produto;
+  },
   async addComponente(payload) {
     const produto = await produtoRepository.getById(payload.produtoId);
     if (!produto) throw httpError('Produto não encontrado', 404);

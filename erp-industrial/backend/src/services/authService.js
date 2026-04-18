@@ -13,35 +13,41 @@ export const authService = {
     );
 
     const user = rows[0];
-    if (!user) throw new Error('Usuário não encontrado');
+    if (!user) throw httpError('Usuário não encontrado', 404);
 
     const senhaValida = await bcrypt.compare(senha, user.senha);
-    if (!senhaValida) throw new Error('Senha inválida');
+    if (!senhaValida) throw httpError('Senha inválida', 401);
 
     const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, {
       expiresIn: '1d',
     });
 
-    return { token };
+    return {
+      token,
+      user: {
+        id: user.id,
+        nome: user.nome,
+        email: user.email,
+        role: user.role,
+      },
+    };
   },
 
   async register(payload, user) {
     const { nome, email, senha, role } = payload;
 
-    // 🔥 verifica se já existe algum usuário
     const { rows: users } = await pool.query('SELECT COUNT(*) FROM usuarios');
     const totalUsers = Number(users[0].count);
 
-    // 🧠 REGRA 1: primeiro usuário pode ser criado sem login
     if (totalUsers === 0) {
-      if (role !== 'admin') {
-        throw httpError('Primeiro usuário deve ser admin');
-      }
-    } else {
-      // 🧠 REGRA 2: só admin pode criar usuários
-      if (!user || user.role !== 'admin') {
-        throw httpError('Apenas admin pode criar usuários', 403);
-      }
+      throw httpError(
+        'Cadastro inicial por rota está bloqueado. Crie o primeiro admin manualmente.',
+        403,
+      );
+    }
+
+    if (!user || user.role !== 'admin') {
+      throw httpError('Apenas admin pode criar usuários', 403);
     }
 
     const senhaHash = await bcrypt.hash(senha, 10);
@@ -54,5 +60,28 @@ export const authService = {
     );
 
     return rows[0];
+  },
+
+  async me(user) {
+    if (!user?.id) {
+      throw httpError('Usuário não autenticado', 401);
+    }
+
+    const { rows } = await pool.query(
+      `
+      SELECT id, nome, email, role
+      FROM usuarios
+      WHERE id = $1
+      `,
+      [user.id],
+    );
+
+    const usuario = rows[0];
+
+    if (!usuario) {
+      throw httpError('Usuário não encontrado', 404);
+    }
+
+    return usuario;
   },
 };

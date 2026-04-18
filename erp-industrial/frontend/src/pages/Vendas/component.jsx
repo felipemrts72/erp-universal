@@ -2,8 +2,20 @@ import { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import Card from '../../components/Card';
 import BuscaManual from '../../components/BuscaManual';
+import ModalSelecao from '../../components/ModalSelecao';
+import FormasPagamentoEditor from '../../components/FormasPagamentoEditor';
+import {
+  createPagamentoItem,
+  normalizePagamento,
+  validarPagamentos,
+} from '../../utils/pagamentos';
+import {
+  gerarHtmlDocumento,
+  imprimirDocumento,
+} from '../../utils/documentoPrint';
 import LoadingModal from '../../components/LoadingModal';
 import { useToast } from '../../contexts/ToastContext';
+import ActionContextMenu from '../../components/ActionContextMenu/ActionContextMenu';
 
 import './style.css';
 
@@ -12,6 +24,8 @@ const initialItem = {
   produto_nome: '',
   quantidade: 1,
   preco_unitario: 0,
+  desconto_valor: 0,
+  desconto_percentual: 0,
 };
 
 const initialCliente = {
@@ -31,6 +45,9 @@ const initialCliente = {
   transportadora_nome_manual: '',
   observacoes_entrega: '',
   prazo_entrega: '',
+  observacoes: '',
+  desconto_geral: 0,
+  formas_pagamento: [createPagamentoItem()],
 };
 
 function toNumber(value) {
@@ -48,6 +65,11 @@ function formatMoney(value) {
 function formatDate(value) {
   if (!value) return '-';
   return new Date(value).toLocaleString('pt-BR');
+}
+
+function formatDateOnly(value) {
+  if (!value) return '-';
+  return new Date(value).toLocaleDateString('pt-BR');
 }
 
 function getStatusLabel(status) {
@@ -81,6 +103,14 @@ export default function Vendas() {
 
   const [modalOpen, setModalOpen] = useState(false);
 
+  const [modalImpressaoOpen, setModalImpressaoOpen] = useState(false);
+  const [documentoParaImprimir, setDocumentoParaImprimir] = useState(null);
+
+  const [listaContextMenuOpen, setListaContextMenuOpen] = useState(false);
+  const [listaContextMenuX, setListaContextMenuX] = useState(0);
+  const [listaContextMenuY, setListaContextMenuY] = useState(0);
+  const [vendaContexto, setVendaContexto] = useState(null);
+
   const [clienteForm, setClienteForm] = useState(initialCliente);
   const [itemForm, setItemForm] = useState(initialItem);
   const [itens, setItens] = useState([]);
@@ -88,6 +118,8 @@ export default function Vendas() {
   const [transportadoras, setTransportadoras] = useState([]);
   const [usarTransportadoraManual, setUsarTransportadoraManual] =
     useState(false);
+
+  const [modalClienteOpen, setModalClienteOpen] = useState(false);
 
   const clienteNaoCadastrado = !clienteForm.cliente_id;
 
@@ -105,6 +137,13 @@ export default function Vendas() {
       setLoading(false);
     }
   };
+  const handleVendaContextMenu = (event, row) => {
+    event.preventDefault();
+    setVendaContexto(row);
+    setListaContextMenuX(event.clientX);
+    setListaContextMenuY(event.clientY);
+    setListaContextMenuOpen(true);
+  };
 
   const loadTransportadoras = async () => {
     try {
@@ -118,6 +157,15 @@ export default function Vendas() {
   };
 
   useEffect(() => {
+    const fecharMenu = () => {
+      setListaContextMenuOpen(false);
+    };
+
+    window.addEventListener('click', fecharMenu);
+    return () => window.removeEventListener('click', fecharMenu);
+  }, []);
+
+  useEffect(() => {
     load();
     loadTransportadoras();
   }, []);
@@ -127,11 +175,33 @@ export default function Vendas() {
       return acc + toNumber(item.quantidade) * toNumber(item.preco_unitario);
     }, 0);
 
+    const descontoItens = itens.reduce((acc, item) => {
+      const quantidade = toNumber(item.quantidade);
+      const preco = toNumber(item.preco_unitario);
+      const subtotal = quantidade * preco;
+
+      const descontoValor = toNumber(item.desconto_valor);
+      const descontoPercentual = toNumber(item.desconto_percentual);
+
+      const descontoCalculado =
+        descontoValor > 0
+          ? descontoValor * quantidade
+          : subtotal * (descontoPercentual / 100);
+
+      return acc + descontoCalculado;
+    }, 0);
+
+    const descontoGeral = toNumber(clienteForm.desconto_geral);
+    const liquido = Math.max(bruto - descontoItens - descontoGeral, 0);
+
     return {
       itens: itens.length,
       bruto,
+      descontoItens,
+      descontoGeral,
+      liquido,
     };
-  }, [itens]);
+  }, [itens, clienteForm.desconto_geral]);
 
   const resetFormulario = () => {
     setClienteForm(initialCliente);
@@ -199,6 +269,8 @@ export default function Vendas() {
         ...itemForm,
         quantidade: toNumber(itemForm.quantidade),
         preco_unitario: toNumber(itemForm.preco_unitario),
+        desconto_valor: toNumber(itemForm.desconto_valor),
+        desconto_percentual: toNumber(itemForm.desconto_percentual),
       },
     ]);
 
@@ -283,6 +355,15 @@ export default function Vendas() {
       showToast('Adicione pelo menos um item', 'error');
       return;
     }
+    const erroPagamentos = validarPagamentos(
+      clienteForm.formas_pagamento || [],
+      totais.liquido,
+    );
+
+    if (erroPagamentos) {
+      showToast(erroPagamentos, 'error');
+      return;
+    }
 
     const payload = {
       clienteNome: clienteForm.clienteNome,
@@ -307,18 +388,71 @@ export default function Vendas() {
           : '',
       observacoes_entrega: clienteForm.observacoes_entrega || '',
       prazo_entrega: clienteForm.prazo_entrega || '',
+      observacoes: clienteForm.observacoes || '',
+      desconto_geral: toNumber(clienteForm.desconto_geral),
+      formas_pagamento: (clienteForm.formas_pagamento || []).map(
+        normalizePagamento,
+      ),
       itens: itens.map((item) => ({
         produto_id: item.produto_id,
         quantidade: toNumber(item.quantidade),
         preco_unitario: toNumber(item.preco_unitario),
+        desconto_valor: toNumber(item.desconto_valor),
+        desconto_percentual: toNumber(item.desconto_percentual),
       })),
     };
 
     try {
       setSaving(true);
-      await api.post('/vendas', payload);
+      const { data } = await api.post('/vendas', payload);
 
       showToast('Venda criada com sucesso', 'success');
+
+      const clienteDocumento = await montarClienteDocumento(
+        clienteForm.cliente_id,
+        clienteForm.clienteNome,
+      );
+
+      setDocumentoParaImprimir({
+        tipo: 'venda',
+        numero: data?.id || '',
+        cliente: clienteDocumento,
+        observacoes: clienteForm.observacoes || '',
+        formas_pagamento: (clienteForm.formas_pagamento || []).map(
+          normalizePagamento,
+        ),
+        itens: itens.map((item) => {
+          const quantidade = toNumber(item.quantidade);
+          const preco = toNumber(item.preco_unitario);
+          const subtotal = quantidade * preco;
+
+          const descontoValor = toNumber(item.desconto_valor);
+          const descontoPercentual = toNumber(item.desconto_percentual);
+
+          const descontoCalculado =
+            descontoValor > 0
+              ? descontoValor * quantidade
+              : subtotal * (descontoPercentual / 100);
+
+          return {
+            ...item,
+            desconto_label:
+              descontoValor > 0
+                ? formatMoney(descontoValor)
+                : `${descontoPercentual || 0}%`,
+            total_liquido: subtotal - descontoCalculado,
+          };
+        }),
+        totais: {
+          bruto: totais.bruto,
+          descontoItens: totais.descontoItens,
+          descontoGeral: totais.descontoGeral,
+          liquido: totais.liquido,
+        },
+      });
+
+      setModalImpressaoOpen(true);
+
       setModalOpen(false);
       resetFormulario();
       await load();
@@ -353,6 +487,211 @@ export default function Vendas() {
     }
   };
 
+  const montarClienteDocumento = async (cliente_id, fallbackNome = '') => {
+    if (!cliente_id) {
+      return {
+        nome: fallbackNome || '',
+        endereco: clienteForm.endereco || '',
+        numero: clienteForm.numero || '',
+        bairro: clienteForm.bairro || '',
+        cidade: clienteForm.cidade || '',
+        cep: clienteForm.cep || '',
+        telefone: clienteForm.telefone || '',
+        email: clienteForm.email || '',
+        cpf_cnpj: clienteForm.cpf_cnpj || '',
+      };
+    }
+
+    try {
+      const { data } = await api.get(`/clientes/${cliente_id}`);
+      return {
+        nome: data.nome_fantasia || data.nome || fallbackNome || '',
+        endereco: data.endereco || '',
+        numero: data.numero || '',
+        bairro: data.bairro || '',
+        cidade: data.cidade || '',
+        cep: data.cep || '',
+        telefone: data.telefone || '',
+        email: data.email || '',
+        cpf_cnpj: data.cpf_cnpj || '',
+      };
+    } catch {
+      return {
+        nome: fallbackNome || '',
+        endereco: clienteForm.endereco || '',
+        numero: clienteForm.numero || '',
+        bairro: clienteForm.bairro || '',
+        cidade: clienteForm.cidade || '',
+        cep: clienteForm.cep || '',
+        telefone: clienteForm.telefone || '',
+        email: clienteForm.email || '',
+        cpf_cnpj: clienteForm.cpf_cnpj || '',
+      };
+    }
+  };
+
+  const imprimirVendaExistente = async (id) => {
+    try {
+      setLoading(true);
+
+      const venda = items.find((item) => Number(item.id) === Number(id));
+
+      if (!venda) {
+        showToast('Venda não encontrada para impressão', 'error');
+        return;
+      }
+
+      const clienteDocumento = await montarClienteDocumento(
+        venda.cliente_id,
+        venda.cliente_nome,
+      );
+
+      const itensDocumento = (venda.itens || []).map((item) => {
+        const quantidade = toNumber(item.quantidade);
+        const preco = toNumber(item.preco_unitario);
+        const subtotal = quantidade * preco;
+
+        const descontoValor = toNumber(item.desconto_valor);
+        const descontoPercentual = toNumber(item.desconto_percentual);
+
+        const descontoCalculado =
+          descontoValor > 0
+            ? descontoValor * quantidade
+            : subtotal * (descontoPercentual / 100);
+
+        return {
+          ...item,
+          desconto_label:
+            descontoValor > 0
+              ? formatMoney(descontoValor)
+              : `${descontoPercentual || 0}%`,
+          total_liquido: subtotal - descontoCalculado,
+        };
+      });
+
+      const bruto = itensDocumento.reduce(
+        (acc, item) =>
+          acc + toNumber(item.quantidade) * toNumber(item.preco_unitario),
+        0,
+      );
+
+      const descontoItens = itensDocumento.reduce((acc, item) => {
+        const quantidade = toNumber(item.quantidade);
+        const preco = toNumber(item.preco_unitario);
+        const subtotal = quantidade * preco;
+
+        const descontoValor = toNumber(item.desconto_valor);
+        const descontoPercentual = toNumber(item.desconto_percentual);
+
+        const descontoCalculado =
+          descontoValor > 0
+            ? descontoValor * quantidade
+            : subtotal * (descontoPercentual / 100);
+
+        return acc + descontoCalculado;
+      }, 0);
+
+      const descontoGeral = toNumber(venda.desconto_geral || 0);
+
+      setDocumentoParaImprimir({
+        tipo: 'venda',
+        numero: venda.id,
+        cliente: clienteDocumento,
+        observacoes: venda.observacoes || '',
+        formas_pagamento: Array.isArray(venda.formas_pagamento)
+          ? venda.formas_pagamento.map(normalizePagamento)
+          : [],
+        itens: itensDocumento,
+        totais: {
+          bruto,
+          descontoItens,
+          descontoGeral,
+          liquido: Math.max(bruto - descontoItens - descontoGeral, 0),
+        },
+      });
+
+      setModalImpressaoOpen(true);
+    } catch (error) {
+      console.error(error);
+      showToast('Erro ao preparar impressão da venda', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clonarVenda = async (id) => {
+    try {
+      setLoading(true);
+
+      const venda = items.find((item) => Number(item.id) === Number(id));
+
+      if (!venda) {
+        showToast('Venda não encontrada para clonagem', 'error');
+        return;
+      }
+
+      setClienteForm({
+        ...initialCliente,
+        clienteNome: venda.cliente_nome || '',
+        cliente_id: venda.cliente_id || null,
+        tipo_entrega: venda.tipo_entrega || 'retirada',
+        transportadora_id: venda.transportadora_id || null,
+        transportadora_nome_manual: venda.transportadora_nome_manual || '',
+        observacoes_entrega: venda.observacoes_entrega || '',
+        prazo_entrega: venda.prazo_entrega
+          ? String(venda.prazo_entrega).slice(0, 10)
+          : '',
+        observacoes: venda.observacoes || '',
+        desconto_geral: venda.desconto_geral || 0,
+        formas_pagamento:
+          Array.isArray(venda.formas_pagamento) && venda.formas_pagamento.length
+            ? venda.formas_pagamento.map((item) => ({
+                ...normalizePagamento(item),
+                id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                valor: item.valor,
+              }))
+            : [createPagamentoItem()],
+      });
+
+      setItens(
+        (venda.itens || []).map((item) => ({
+          produto_id: item.produto_id,
+          produto_nome: item.produto_nome || '',
+          quantidade: toNumber(item.quantidade),
+          preco_unitario: toNumber(item.preco_unitario),
+          desconto_valor: toNumber(item.desconto_valor),
+          desconto_percentual: toNumber(item.desconto_percentual),
+        })),
+      );
+
+      setModalOpen(true);
+      setListaContextMenuOpen(false);
+
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+
+      showToast(`Venda #${venda.id} carregada para clonagem`, 'success');
+    } catch (error) {
+      console.error(error);
+      showToast('Erro ao clonar venda', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const abrirDetalhesVenda = (id) => {
+    const venda = items.find((item) => Number(item.id) === Number(id));
+
+    if (!venda) {
+      showToast('Venda não encontrada', 'error');
+      return;
+    }
+
+    showToast(`Venda #${venda.id} selecionada`, 'success');
+  };
+
   return (
     <>
       {(loading || saving) && <LoadingModal />}
@@ -363,7 +702,7 @@ export default function Vendas() {
       >
         <div className='vendas-page__top-action'>
           <button
-            className='btn btn--primary vendas-page__new-button'
+            className='btn btn--main vendas-page__new-button'
             type='button'
             onClick={() => {
               resetFormulario();
@@ -379,10 +718,15 @@ export default function Vendas() {
             items.map((venda) => {
               const itensVenda = Array.isArray(venda.itens) ? venda.itens : [];
               const totalItens = Number(venda.total_itens || 0);
-              const valorTotal = Number(venda.valor_total || 0);
 
               return (
-                <article key={venda.id} className='vendas-page__sale-card'>
+                <article
+                  key={venda.id}
+                  className='vendas-page__sale-card'
+                  onContextMenu={(event) =>
+                    handleVendaContextMenu(event, venda)
+                  }
+                >
                   <div className='vendas-page__sale-header'>
                     <div>
                       <h3 className='vendas-page__sale-title'>
@@ -411,9 +755,25 @@ export default function Vendas() {
 
                     <div className='vendas-page__meta'>
                       <span className='vendas-page__meta-label'>
-                        Valor total
+                        Total bruto
                       </span>
-                      <strong>{formatMoney(valorTotal)}</strong>
+                      <strong>{formatMoney(venda.valor_total || 0)}</strong>
+                    </div>
+
+                    <div className='vendas-page__meta'>
+                      <span className='vendas-page__meta-label'>
+                        Desconto geral
+                      </span>
+                      <strong>{formatMoney(venda.desconto_geral || 0)}</strong>
+                    </div>
+
+                    <div className='vendas-page__meta'>
+                      <span className='vendas-page__meta-label'>
+                        Total líquido
+                      </span>
+                      <strong className='vendas-page__summary-total'>
+                        Total líquido: {formatMoney(totais.liquido)}
+                      </strong>
                     </div>
                   </div>
 
@@ -444,7 +804,7 @@ export default function Vendas() {
                       <span className='vendas-page__meta-label'>
                         Prazo de entrega
                       </span>
-                      <strong>{venda.prazo_entrega}</strong>
+                      <strong>{formatDateOnly(venda.prazo_entrega)}</strong>
                     </div>
                   )}
 
@@ -493,35 +853,42 @@ export default function Vendas() {
                 ×
               </button>
             </div>
-
             <div className='vendas-page__form-grid'>
               <div className='vendas-page__field vendas-page__field--full'>
-                <BuscaManual
-                  endpoint='/clientes/busca'
-                  label='Cliente'
-                  placeholder='Digite 3 letras, Enter ou clique na lupa'
-                  onSelect={handleClienteSelect}
-                  value={clienteForm.clienteNome}
-                  onChangeValue={(value) => {
-                    setClienteForm((prev) => ({
-                      ...prev,
-                      clienteNome: value,
-                      cliente_id: null,
-                      nome_completo: '',
-                      telefone: '',
-                      email: '',
-                      cpf_cnpj: '',
-                      endereco: '',
-                      numero: '',
-                      bairro: '',
-                      cidade: '',
-                      cep: '',
-                    }));
-                  }}
-                />
+                <span>Cliente</span>
+
+                <div className='orcamentos-page__cliente'>
+                  <input
+                    value={clienteForm.clienteNome}
+                    onChange={(e) =>
+                      setClienteForm((prev) => ({
+                        ...prev,
+                        clienteNome: e.target.value,
+                        cliente_id: null,
+                        nome_completo: '',
+                        telefone: '',
+                        email: '',
+                        cpf_cnpj: '',
+                        endereco: '',
+                        numero: '',
+                        bairro: '',
+                        cidade: '',
+                        cep: '',
+                      }))
+                    }
+                    placeholder='Digite o nome do cliente ou use a lupa'
+                  />
+
+                  <button
+                    type='button'
+                    className='btn btn--primary'
+                    onClick={() => setModalClienteOpen(true)}
+                  >
+                    Buscar Clientes 🔍
+                  </button>
+                </div>
               </div>
             </div>
-
             {clienteNaoCadastrado ? (
               <div className='vendas-page__form-grid'>
                 <label className='vendas-page__field vendas-page__field--full'>
@@ -618,6 +985,207 @@ export default function Vendas() {
                 usados.
               </div>
             )}
+
+            <div className='vendas-page__item-section'>
+              <h3 className='vendas-page__section-title'>Itens da venda</h3>
+
+              <div className='vendas-page__item-form'>
+                <div className='vendas-page__field vendas-page__field--product'>
+                  <BuscaManual
+                    endpoint='/produtos/busca'
+                    label='Produto'
+                    placeholder='Digite o nome do produto e pressione Enter'
+                    extraParams={{ tipos: 'fabricado,revenda,conjunto' }}
+                    onSelect={handleProdutoSelect}
+                    value={itemForm.produto_nome}
+                    onChangeValue={(value) =>
+                      setItemForm((prev) => ({
+                        ...prev,
+                        produto_nome: value,
+                        produto_id:
+                          value === prev.produto_nome ? prev.produto_id : null,
+                      }))
+                    }
+                  />
+                </div>
+
+                <label className='vendas-page__field'>
+                  <span>Quantidade</span>
+                  <input
+                    value={itemForm.quantidade}
+                    onChange={(e) =>
+                      setItemForm((prev) => ({
+                        ...prev,
+                        quantidade: e.target.value,
+                      }))
+                    }
+                  />
+                </label>
+
+                <label className='vendas-page__field'>
+                  <span>Preço unitário</span>
+                  <input
+                    value={itemForm.preco_unitario}
+                    onChange={(e) =>
+                      setItemForm((prev) => ({
+                        ...prev,
+                        preco_unitario: e.target.value,
+                      }))
+                    }
+                  />
+                </label>
+
+                <label className='vendas-page__field'>
+                  <span>Desc. valor</span>
+                  <input
+                    value={itemForm.desconto_valor}
+                    onChange={(e) =>
+                      setItemForm((prev) => ({
+                        ...prev,
+                        desconto_valor: e.target.value,
+                      }))
+                    }
+                    placeholder='0,00'
+                  />
+                </label>
+
+                <label className='vendas-page__field'>
+                  <span>Desc. %</span>
+                  <input
+                    value={itemForm.desconto_percentual}
+                    onChange={(e) =>
+                      setItemForm((prev) => ({
+                        ...prev,
+                        desconto_percentual: e.target.value,
+                      }))
+                    }
+                    placeholder='0'
+                  />
+                </label>
+
+                <div className='vendas-page__field vendas-page__field--button'>
+                  <button
+                    type='button'
+                    className='btn btn--secondary'
+                    onClick={adicionarItem}
+                  >
+                    Adicionar item
+                  </button>
+                </div>
+              </div>
+
+              <div className='vendas-page__item-list'>
+                {itens.length ? (
+                  itens.map((item, index) => {
+                    const quantidade = toNumber(item.quantidade);
+                    const precoUnitario = toNumber(item.preco_unitario);
+                    const subtotal = quantidade * precoUnitario;
+
+                    const descontoValor = toNumber(item.desconto_valor);
+                    const descontoPercentual = toNumber(
+                      item.desconto_percentual,
+                    );
+
+                    const descontoCalculado =
+                      descontoValor > 0
+                        ? descontoValor * quantidade
+                        : subtotal * (descontoPercentual / 100);
+
+                    const totalLiquidoItem = subtotal - descontoCalculado;
+
+                    return (
+                      <div
+                        key={`${item.produto_id}-${index}`}
+                        className='vendas-page__item-card'
+                      >
+                        <div>
+                          <strong>{item.produto_nome}</strong>
+
+                          <p>
+                            {quantidade} × {formatMoney(precoUnitario)}
+                          </p>
+
+                          <p>Subtotal: {formatMoney(subtotal)}</p>
+
+                          <p>
+                            Desconto:{' '}
+                            {descontoValor > 0
+                              ? formatMoney(descontoValor)
+                              : `${descontoPercentual}%`}
+                          </p>
+
+                          <p>
+                            Total líquido:{' '}
+                            <strong>{formatMoney(totalLiquidoItem)}</strong>
+                          </p>
+                        </div>
+
+                        <button
+                          type='button'
+                          className='btn btn--secondary'
+                          onClick={() => removerItem(index)}
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className='vendas-page__empty-items'>
+                    Nenhum item adicionado.
+                  </div>
+                )}
+              </div>
+
+              <div className='vendas-page__summary'>
+                <span>Total de itens: {totais.itens}</span>
+                <span>Total bruto: {formatMoney(totais.bruto)}</span>
+                <span>
+                  Desconto dos itens: {formatMoney(totais.descontoItens)}
+                </span>
+
+                <label className='vendas-page__summary-discount'>
+                  <span>Desconto geral</span>
+                  <input
+                    value={clienteForm.desconto_geral}
+                    onChange={(e) =>
+                      handleClienteChange('desconto_geral', e.target.value)
+                    }
+                    placeholder='0,00'
+                  />
+                </label>
+
+                <strong className='vendas-page__summary-total'>
+                  Total líquido: {formatMoney(totais.liquido)}
+                </strong>
+              </div>
+            </div>
+
+            <div className='vendas-page__logistica'>
+              <h3 className='vendas-page__section-title'>Observações</h3>
+
+              <textarea
+                className='orcamento-modal__textarea'
+                rows={4}
+                maxLength={200}
+                value={clienteForm.observacoes || ''}
+                onChange={(e) =>
+                  handleClienteChange('observacoes', e.target.value)
+                }
+                placeholder='Digite observações da venda'
+              />
+            </div>
+
+            <div className='vendas-page__logistica'>
+              <FormasPagamentoEditor
+                pagamentos={clienteForm.formas_pagamento || []}
+                totalLiquido={totais.liquido}
+                onChange={(next) =>
+                  handleClienteChange('formas_pagamento', next)
+                }
+                titulo='Formas de pagamento'
+              />
+            </div>
 
             <div className='vendas-page__logistica'>
               <h3 className='vendas-page__section-title'>
@@ -742,93 +1310,6 @@ export default function Vendas() {
               </div>
             </div>
 
-            <div className='vendas-page__item-section'>
-              <h3 className='vendas-page__section-title'>Itens da venda</h3>
-
-              <div className='vendas-page__item-form'>
-                <div className='vendas-page__field vendas-page__field--product'>
-                  <BuscaManual
-                    endpoint='/produtos/busca'
-                    label='Produto'
-                    placeholder='Digite 3 letras, Enter ou clique na lupa'
-                    extraParams={{ tipos: 'fabricado,revenda,conjunto' }}
-                    onSelect={handleProdutoSelect}
-                  />
-                </div>
-
-                <label className='vendas-page__field'>
-                  <span>Quantidade</span>
-                  <input
-                    value={itemForm.quantidade}
-                    onChange={(e) =>
-                      setItemForm((prev) => ({
-                        ...prev,
-                        quantidade: e.target.value,
-                      }))
-                    }
-                  />
-                </label>
-
-                <label className='vendas-page__field'>
-                  <span>Preço unitário</span>
-                  <input
-                    value={itemForm.preco_unitario}
-                    onChange={(e) =>
-                      setItemForm((prev) => ({
-                        ...prev,
-                        preco_unitario: e.target.value,
-                      }))
-                    }
-                  />
-                </label>
-
-                <div className='vendas-page__field vendas-page__field--button'>
-                  <button
-                    type='button'
-                    className='btn btn--secondary'
-                    onClick={adicionarItem}
-                  >
-                    Adicionar item
-                  </button>
-                </div>
-              </div>
-
-              <div className='vendas-page__item-list'>
-                {itens.length ? (
-                  itens.map((item, index) => (
-                    <div
-                      key={`${item.produto_id}-${index}`}
-                      className='vendas-page__item-card'
-                    >
-                      <div>
-                        <strong>{item.produto_nome}</strong>
-                        <p>
-                          {item.quantidade} × {formatMoney(item.preco_unitario)}
-                        </p>
-                      </div>
-
-                      <button
-                        type='button'
-                        className='btn btn--secondary'
-                        onClick={() => removerItem(index)}
-                      >
-                        Remover
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <div className='vendas-page__empty-items'>
-                    Nenhum item adicionado.
-                  </div>
-                )}
-              </div>
-
-              <div className='vendas-page__summary'>
-                <span>Total de itens: {totais.itens}</span>
-                <strong>Total: {formatMoney(totais.bruto)}</strong>
-              </div>
-            </div>
-
             <div className='vendas-page__modal-actions'>
               <button
                 type='button'
@@ -843,7 +1324,7 @@ export default function Vendas() {
 
               <button
                 type='button'
-                className='btn btn--primary'
+                className='btn btn--main'
                 onClick={criarVenda}
               >
                 Confirmar venda
@@ -852,6 +1333,125 @@ export default function Vendas() {
           </div>
         </div>
       )}
+
+      <ModalSelecao
+        open={modalClienteOpen}
+        title='Pesquisar cliente'
+        endpoint='/clientes/busca'
+        placeholder='Digite nome, nome fantasia, CPF/CNPJ ou telefone'
+        colunas={[
+          { key: 'id', label: 'ID' },
+          { key: 'nome_fantasia', label: 'Nome fantasia' },
+          { key: 'nome', label: 'Nome oficial' },
+          { key: 'cpf_cnpj', label: 'CPF/CNPJ' },
+        ]}
+        onClose={() => setModalClienteOpen(false)}
+        onConfirm={(item) => {
+          setClienteForm((prev) => ({
+            ...prev,
+            cliente_id: item.id,
+            clienteNome: item.nome_fantasia || item.nome || '',
+            nome_completo: item.nome || '',
+            telefone: item.telefone || '',
+            email: item.email || '',
+            cpf_cnpj: item.cpf_cnpj || '',
+            endereco: item.endereco || '',
+            numero: item.numero || '',
+            bairro: item.bairro || '',
+            cidade: item.cidade || '',
+            cep: item.cep || '',
+          }));
+          setModalClienteOpen(false);
+        }}
+        formatarValor={(item) =>
+          item.nome_fantasia || item.nome || `#${item.id}`
+        }
+      />
+
+      {modalImpressaoOpen && (
+        <div className='vendas-page__modal'>
+          <div
+            className='vendas-page__modal-backdrop'
+            onClick={() => setModalImpressaoOpen(false)}
+          />
+
+          <div className='vendas-page__modal-card'>
+            <div className='vendas-page__modal-header'>
+              <h2 className='vendas-page__modal-title'>
+                Deseja imprimir este documento?
+              </h2>
+            </div>
+
+            <div className='vendas-page__modal-actions'>
+              <button
+                type='button'
+                className='btn btn--secondary'
+                onClick={() => setModalImpressaoOpen(false)}
+              >
+                Não
+              </button>
+
+              <button
+                type='button'
+                className='btn btn--main'
+                onClick={() => {
+                  const html = gerarHtmlDocumento({
+                    tipo: documentoParaImprimir.tipo,
+                    numero: documentoParaImprimir.numero,
+                    empresa: {
+                      nome: 'TORNEADORA UNIVERSAL',
+                      logoUrl: '/logo.png',
+                      endereco: 'R Thiago Magalhães Nunes, 1369, Centro',
+                      cidade: 'Peixoto De Azevedo',
+                      estado: 'MT',
+                      telefone: '(66) 999751055',
+                      email: 'gerente.torneadorauniversal@gmail.com',
+                    },
+                    cliente: documentoParaImprimir.cliente,
+                    itens: documentoParaImprimir.itens,
+                    totais: documentoParaImprimir.totais,
+                    formas_pagamento:
+                      documentoParaImprimir.formas_pagamento || [],
+                    observacoes: documentoParaImprimir.observacoes || '',
+                    assinaturaProprietarioUrl: '/assinatura-proprietario.png',
+                  });
+
+                  imprimirDocumento(html);
+                  setModalImpressaoOpen(false);
+                }}
+              >
+                Sim, imprimir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <ActionContextMenu
+        open={listaContextMenuOpen}
+        x={listaContextMenuX}
+        y={listaContextMenuY}
+        onClose={() => setListaContextMenuOpen(false)}
+        actions={[
+          {
+            key: 'print',
+            label: 'Reimprimir venda',
+            visible: !!vendaContexto,
+            onClick: () => imprimirVendaExistente(vendaContexto.id),
+          },
+          {
+            key: 'clone',
+            label: 'Clonar venda',
+            visible: !!vendaContexto,
+            onClick: () => clonarVenda(vendaContexto.id),
+          },
+          {
+            key: 'details',
+            label: 'Ver detalhes',
+            visible: !!vendaContexto,
+            onClick: () => abrirDetalhesVenda(vendaContexto.id),
+          },
+        ]}
+      />
     </>
   );
 }

@@ -1,0 +1,33 @@
+.orcamento-lista-context-menu {
+  position: fixed;
+  z-index: 1500;
+  min-width: 220px;
+  background: #fff;
+  border: 1px solid #dbe1ea;
+  border-radius: 12px;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+}
+
+.orcamento-lista-context-menu__button {
+  width: 100%;
+  border: 0;
+  background: #fff;
+  text-align: left;
+  padding: 12px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.orcamento-lista-context-menu__button:last-child {
+  border-bottom: 0;
+}
+
+.orcamento-lista-context-menu__button:hover {
+  background: #f8fafc;
+}
+
+.orcamento-lista-context-menu__button--danger {
+  color: #b91c1c;
+}

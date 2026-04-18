@@ -11,7 +11,14 @@ import {
   gerarHtmlDocumento,
   imprimirDocumento,
 } from '../../utils/documentoPrint';
+import ObservacoesModal from '../../components/ObservacoesModal';
+import {
+  createPagamentoItem,
+  normalizePagamento,
+} from '../../utils/pagamentos';
 import OrcamentoItemContextMenu from '../../components/OrcamentoItemContextMenu';
+//import OrcamentoListaContextMenu from '../../components/OrcamentoListaContextMenu/OrcamentoListaContextMenu';
+import ActionContextMenu from '../../components/ActionContextMenu/ActionContextMenu';
 import OrcamentoItemEditarModal from '../../components/OrcamentoItemEditarModal';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -55,9 +62,9 @@ export default function Orcamentos() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [modalVendaOpen, setModalVendaOpen] = useState(false);
-  const [descontoGeralVenda, setDescontoGeralVenda] = useState(0);
-  const [loadingVenda, setLoadingVenda] = useState(false);
+  const [observacoes, setObservacoes] = useState('');
+  const [pagamentos, setPagamentos] = useState([createPagamentoItem()]);
+  const [modalObservacoesOpen, setModalObservacoesOpen] = useState(false);
 
   const [modalImpressaoOpen, setModalImpressaoOpen] = useState(false);
   const [documentoParaImprimir, setDocumentoParaImprimir] = useState(null);
@@ -67,6 +74,11 @@ export default function Orcamentos() {
   const [contextMenuY, setContextMenuY] = useState(0);
   const [itemContexto, setItemContexto] = useState(null);
 
+  const [listaContextMenuOpen, setListaContextMenuOpen] = useState(false);
+  const [listaContextMenuX, setListaContextMenuX] = useState(0);
+  const [listaContextMenuY, setListaContextMenuY] = useState(0);
+  const [orcamentoContexto, setOrcamentoContexto] = useState(null);
+
   const [itemEditando, setItemEditando] = useState(null);
   const [modalEditarItemOpen, setModalEditarItemOpen] = useState(false);
 
@@ -74,14 +86,6 @@ export default function Orcamentos() {
   const [orcamentoEditandoId, setOrcamentoEditandoId] = useState(null);
 
   const [modalClienteOpen, setModalClienteOpen] = useState(false);
-
-  const [vendaForm, setVendaForm] = useState({
-    tipo_entrega: 'retirada',
-    transportadora_id: null,
-    transportadora_nome_manual: '',
-    observacoes_entrega: '',
-    prazo_entrega: '',
-  });
 
   const load = async () => {
     try {
@@ -234,41 +238,6 @@ export default function Orcamentos() {
     };
   }, [itens, descontoGeral]);
 
-  const totaisVenda = useMemo(() => {
-    const bruto = itens.reduce(
-      (acc, item) =>
-        acc + toNumber(item.quantidade) * toNumber(item.preco_unitario),
-      0,
-    );
-
-    const descontoItens = itens.reduce((acc, item) => {
-      const quantidade = toNumber(item.quantidade);
-      const preco = toNumber(item.preco_unitario);
-      const subtotal = quantidade * preco;
-
-      const descontoValor = toNumber(item.desconto_valor);
-      const descontoPercentual = toNumber(item.desconto_percentual);
-
-      const descontoCalculado =
-        descontoValor > 0
-          ? descontoValor * quantidade
-          : subtotal * (descontoPercentual / 100);
-
-      return acc + descontoCalculado;
-    }, 0);
-
-    const descontoExtra = toNumber(descontoGeralVenda);
-    const liquido = Math.max(bruto - descontoItens - descontoExtra, 0);
-
-    return {
-      itens: itens.length,
-      bruto,
-      descontoItens,
-      descontoGeral: descontoExtra,
-      liquido,
-    };
-  }, [itens, descontoGeralVenda]);
-
   const handleProdutoSelect = (id, item) => {
     console.log('handleProdutoSelect -> antes', item);
 
@@ -290,9 +259,13 @@ export default function Orcamentos() {
     });
   };
 
-  const handleClienteSelect = (id, item) => {
-    setClienteId(id || null);
-    setClienteNome(item?.nome_fantasia || item?.nome || '');
+  const handleOrcamentoContextMenu = (event, row) => {
+    event.preventDefault();
+
+    setOrcamentoContexto(row);
+    setListaContextMenuX(event.clientX);
+    setListaContextMenuY(event.clientY);
+    setListaContextMenuOpen(true);
   };
 
   const handleItemChange = (field, value) => {
@@ -347,6 +320,9 @@ export default function Orcamentos() {
     setModoFormulario('novo');
     setOrcamentoEditandoId(null);
     setModalClienteOpen(false);
+    setObservacoes('');
+    setPagamentos([createPagamentoItem()]);
+    setModalObservacoesOpen(false);
   };
 
   const abrirModalSalvar = () => {
@@ -363,34 +339,17 @@ export default function Orcamentos() {
     setModalOpen(true);
   };
 
-  const abrirModalVenda = () => {
-    if (!clienteNome.trim()) {
-      showToast('Informe o nome do cliente', 'error');
-      return;
-    }
-
-    if (!itens.length) {
-      showToast('Adicione pelo menos um item ao orçamento', 'error');
-      return;
-    }
-
-    setDescontoGeralVenda(descontoGeral || 0);
-    setVendaForm({
-      tipo_entrega: 'retirada',
-      transportadora_id: null,
-      transportadora_nome_manual: '',
-      observacoes_entrega: '',
-      prazo_entrega: '',
-    });
-    setUsarTransportadoraManual(false);
-    setModalVendaOpen(true);
-  };
-
-  const confirmarSalvarOrcamento = async ({ descontoGeral: descontoModal }) => {
+  const confirmarSalvarOrcamento = async ({
+    descontoGeral: descontoModal,
+    observacoes: observacoesModal,
+    pagamentos: pagamentosModal,
+  }) => {
     const payload = {
       clienteNome,
       cliente_id: clienteId || null,
       desconto_geral: toNumber(descontoModal),
+      observacoes: observacoesModal || '',
+      formas_pagamento: (pagamentosModal || []).map(normalizePagamento),
       itens: itens.map((item) => ({
         produto_id: item.produto_id,
         quantidade: toNumber(item.quantidade),
@@ -407,20 +366,30 @@ export default function Orcamentos() {
     try {
       setSaving(true);
 
+      let orcamentoSalvo;
+
       if (modoFormulario === 'edicao' && orcamentoEditandoId) {
-        await api.patch(`/orcamentos/${orcamentoEditandoId}`, payload);
+        const { data } = await api.patch(
+          `/orcamentos/${orcamentoEditandoId}`,
+          payload,
+        );
+        orcamentoSalvo = data;
       } else {
-        await api.post('/orcamentos', payload);
+        const { data } = await api.post('/orcamentos', payload);
+        orcamentoSalvo = data;
       }
+
+      const clienteDocumento = await montarClienteDocumento(
+        orcamentoSalvo?.cliente_id || clienteId,
+        orcamentoSalvo?.cliente_nome || clienteNome,
+      );
 
       setDocumentoParaImprimir({
         tipo: 'orcamento',
-        cliente: {
-          nome: clienteNome,
-          endereco: '',
-          cidade: '',
-          cep: '',
-        },
+        numero: orcamentoSalvo?.id || orcamentoEditandoId || '',
+        cliente: clienteDocumento,
+        observacoes: observacoesModal || '',
+        formas_pagamento: (pagamentosModal || []).map(normalizePagamento),
         itens: itens.map((item) => {
           const quantidade = toNumber(item.quantidade);
           const preco = toNumber(item.preco_unitario);
@@ -465,6 +434,8 @@ export default function Orcamentos() {
       setModoFormulario('novo');
       setOrcamentoEditandoId(null);
       setModalOpen(false);
+      setObservacoes(observacoesModal || '');
+      setPagamentos((pagamentosModal || []).map(normalizePagamento));
       limparFormulario();
       await load();
     } catch (err) {
@@ -475,123 +446,6 @@ export default function Orcamentos() {
       );
     } finally {
       setSaving(false);
-    }
-  };
-
-  const lancarVenda = async () => {
-    if (!vendaForm.tipo_entrega) {
-      showToast('Informe o tipo de entrega', 'error');
-      return;
-    }
-
-    if (
-      vendaForm.tipo_entrega === 'transportadora' &&
-      !vendaForm.transportadora_id &&
-      !String(vendaForm.transportadora_nome_manual || '').trim()
-    ) {
-      showToast(
-        'Selecione uma transportadora ou informe uma manualmente',
-        'error',
-      );
-      return;
-    }
-    const payload = {
-      clienteNome,
-      cliente_id: clienteId || null,
-      desconto_geral: toNumber(descontoGeralVenda),
-      tipo_entrega: vendaForm.tipo_entrega || 'retirada',
-      transportadora_id:
-        vendaForm.tipo_entrega === 'transportadora'
-          ? vendaForm.transportadora_id || null
-          : null,
-      transportadora_nome_manual:
-        vendaForm.tipo_entrega === 'transportadora'
-          ? vendaForm.transportadora_nome_manual || ''
-          : '',
-      observacoes_entrega: vendaForm.observacoes_entrega || '',
-      prazo_entrega: vendaForm.prazo_entrega || null,
-      itens: itens.map((item) => ({
-        produto_id: item.produto_id,
-        quantidade: toNumber(item.quantidade),
-        preco_unitario: toNumber(item.preco_unitario),
-        desconto_valor: toNumber(item.desconto_valor),
-        desconto_percentual: toNumber(item.desconto_percentual),
-        nome_customizado:
-          item.nome_customizado && item.nome_customizado !== item.produto_nome
-            ? item.nome_customizado
-            : undefined,
-      })),
-    };
-
-    try {
-      setLoadingVenda(true);
-      await api.post('/orcamentos/venda', payload);
-
-      setDocumentoParaImprimir({
-        tipo: 'venda',
-        cliente: {
-          nome: clienteNome,
-          endereco: '',
-          cidade: '',
-          cep: '',
-        },
-        itens: itens.map((item) => {
-          const quantidade = toNumber(item.quantidade);
-          const preco = toNumber(item.preco_unitario);
-          const subtotal = quantidade * preco;
-
-          const descontoValor = toNumber(item.desconto_valor);
-          const descontoPercentual = toNumber(item.desconto_percentual);
-
-          const descontoCalculado =
-            descontoValor > 0
-              ? descontoValor * quantidade
-              : subtotal * (descontoPercentual / 100);
-
-          return {
-            ...item,
-            desconto_label:
-              descontoValor > 0
-                ? formatMoney(descontoValor)
-                : `${descontoPercentual || 0}%`,
-            total_liquido: subtotal - descontoCalculado,
-          };
-        }),
-        totais: {
-          bruto: totaisVenda.bruto,
-          descontoItens: totaisVenda.descontoItens,
-          descontoGeral: totaisVenda.descontoGeral,
-          liquido: totaisVenda.liquido,
-        },
-      });
-
-      setModalImpressaoOpen(true);
-      showToast('Venda lançada com sucesso', 'success');
-      setModalVendaOpen(false);
-      setClienteNome('');
-      setClienteId(null);
-      setItens([]);
-      setItemForm(initialItem);
-      setDescontoGeral(0);
-      setDescontoGeralVenda(0);
-
-      setVendaForm({
-        tipo_entrega: 'retirada',
-        transportadora_id: null,
-        transportadora_nome_manual: '',
-        observacoes_entrega: '',
-        prazo_entrega: '',
-      });
-      setUsarTransportadoraManual(false);
-
-      await load();
-    } catch (err) {
-      showToast(
-        err?.response?.data?.message || 'Erro ao lançar venda',
-        'error',
-      );
-    } finally {
-      setLoadingVenda(false);
     }
   };
 
@@ -652,7 +506,10 @@ export default function Orcamentos() {
   };
 
   useEffect(() => {
-    const fecharMenu = () => setContextMenuOpen(false);
+    const fecharMenu = () => {
+      setContextMenuOpen(false);
+      setListaContextMenuOpen(false);
+    };
 
     window.addEventListener('click', fecharMenu);
     return () => window.removeEventListener('click', fecharMenu);
@@ -706,6 +563,16 @@ export default function Orcamentos() {
       setClienteNome(data.cliente_nome || '');
       setClienteId(data.cliente_id || null);
       setDescontoGeral(toNumber(data.desconto_geral || 0));
+      setObservacoes(data.observacoes || '');
+      setPagamentos(
+        Array.isArray(data.formas_pagamento) && data.formas_pagamento.length
+          ? data.formas_pagamento.map((item) => ({
+              ...normalizePagamento(item),
+              id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              valor: item.valor,
+            }))
+          : [createPagamentoItem()],
+      );
 
       setItens(
         (data.itens || []).map((item) => ({
@@ -740,11 +607,143 @@ export default function Orcamentos() {
       setLoading(false);
     }
   };
+
   const editarOrcamento = async (id) => {
     await carregarOrcamentoNoFormulario(id, 'edicao');
   };
+
   const clonarOrcamento = async (id) => {
     await carregarOrcamentoNoFormulario(id, 'clone');
+  };
+
+  const imprimirOrcamentoExistente = async (id) => {
+    try {
+      setLoading(true);
+
+      const { data } = await api.get(`/orcamentos/${id}`);
+
+      const itensDocumento = (data.itens || []).map((item) => {
+        const quantidade = toNumber(item.quantidade);
+        const preco = toNumber(item.preco_unitario);
+        const subtotal = quantidade * preco;
+
+        const descontoValor = toNumber(item.desconto_valor);
+        const descontoPercentual = toNumber(item.desconto_percentual);
+
+        const descontoCalculado =
+          descontoValor > 0
+            ? descontoValor * quantidade
+            : subtotal * (descontoPercentual / 100);
+
+        return {
+          ...item,
+          desconto_label:
+            descontoValor > 0
+              ? formatMoney(descontoValor)
+              : `${descontoPercentual || 0}%`,
+          total_liquido: subtotal - descontoCalculado,
+        };
+      });
+
+      const bruto = itensDocumento.reduce(
+        (acc, item) =>
+          acc + toNumber(item.quantidade) * toNumber(item.preco_unitario),
+        0,
+      );
+
+      const descontoItens = itensDocumento.reduce((acc, item) => {
+        const quantidade = toNumber(item.quantidade);
+        const preco = toNumber(item.preco_unitario);
+        const subtotal = quantidade * preco;
+
+        const descontoValor = toNumber(item.desconto_valor);
+        const descontoPercentual = toNumber(item.desconto_percentual);
+
+        const descontoCalculado =
+          descontoValor > 0
+            ? descontoValor * quantidade
+            : subtotal * (descontoPercentual / 100);
+
+        return acc + descontoCalculado;
+      }, 0);
+      const clienteDocumento = await montarClienteDocumento(
+        data.cliente_id,
+        data.cliente_nome,
+      );
+
+      setDocumentoParaImprimir({
+        tipo: 'orcamento',
+        numero: data.id,
+        cliente: clienteDocumento,
+        observacoes: data.observacoes || '',
+        formas_pagamento: Array.isArray(data.formas_pagamento)
+          ? data.formas_pagamento.map(normalizePagamento)
+          : [],
+        itens: itensDocumento,
+        totais: {
+          bruto,
+          descontoItens,
+          descontoGeral: toNumber(data.desconto_geral || 0),
+          liquido: Math.max(
+            bruto - descontoItens - toNumber(data.desconto_geral || 0),
+            0,
+          ),
+        },
+      });
+
+      setModalImpressaoOpen(true);
+    } catch (err) {
+      console.error(err);
+      showToast('Erro ao preparar impressão do orçamento', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const montarClienteDocumento = async (cliente_id, fallbackNome = '') => {
+    if (!cliente_id) {
+      return {
+        nome: fallbackNome || '',
+        endereco: '',
+        numero: '',
+        bairro: '',
+        cidade: '',
+        cep: '',
+        telefone: '',
+        email: '',
+        cpf_cnpj: '',
+      };
+    }
+
+    try {
+      const { data } = await api.get(`/clientes/${cliente_id}`);
+
+      return {
+        nome: data.nome_fantasia || data.nome || fallbackNome || '',
+        endereco: data.endereco || '',
+        numero: data.numero || '',
+        bairro: data.bairro || '',
+        cidade: data.cidade || '',
+        cep: data.cep || '',
+        telefone: data.telefone || '',
+        email: data.email || '',
+        cpf_cnpj: data.cpf_cnpj || '',
+      };
+    } catch (error) {
+      console.error('Erro ao buscar cliente para impressão:', error);
+
+      return {
+        nome: fallbackNome || '',
+        endereco: '',
+        numero: '',
+        bairro: '',
+        cidade: '',
+        cep: '',
+        telefone: '',
+        email: '',
+        cpf_cnpj: '',
+      };
+    }
   };
 
   const fecharModalAprovacao = () => {
@@ -941,11 +940,27 @@ export default function Orcamentos() {
             <DataTable
               columns={[
                 { key: 'codigo', label: 'Código' },
-                { key: 'descricao', label: 'Descrição do item' },
+                {
+                  key: 'descricao',
+                  label: 'Descrição do item',
+                  render: (_, row) => <strong>{row.descricao}</strong>,
+                },
                 { key: 'quantidade', label: 'Quantidade' },
-                { key: 'valor_unitario', label: 'Valor unidade' },
-                { key: 'desconto', label: 'Desconto' },
-                { key: 'total_liquido', label: 'Total líquido' },
+                {
+                  key: 'valor_unitario',
+                  label: 'Valor unidade',
+                  render: (_, row) => <strong>{row.valor_unitario}</strong>,
+                },
+                {
+                  key: 'desconto',
+                  label: 'Desconto',
+                  render: (_, row) => <strong>{row.desconto}</strong>,
+                },
+                {
+                  key: 'total_liquido',
+                  label: 'Total líquido',
+                  render: (_, row) => <strong>{row.total_liquido}</strong>,
+                },
               ]}
               rows={rowsItens}
               emptyText='Nenhum item adicionado ao orçamento.'
@@ -963,7 +978,7 @@ export default function Orcamentos() {
             </button>
 
             <button
-              className='btn btn--secondary'
+              className='btn btn--main'
               onClick={abrirModalSalvar}
               disabled={saving}
               type='button'
@@ -975,10 +990,10 @@ export default function Orcamentos() {
 
             <button
               className='btn btn--primary'
-              onClick={abrirModalVenda}
+              onClick={() => setModalObservacoesOpen(true)}
               type='button'
             >
-              Lançar venda
+              Observações
             </button>
           </div>
         </div>
@@ -998,29 +1013,8 @@ export default function Orcamentos() {
               key: 'acoes',
               label: 'Ações',
               render: (_, row) => {
-                const podeEditar =
-                  row.status === 'rascunho' || row.status === 'enviado';
-
                 return (
                   <div className='page-actions'>
-                    {podeEditar && (
-                      <button
-                        className='btn btn--secondary'
-                        onClick={() => editarOrcamento(row.id)}
-                        disabled={loading}
-                      >
-                        Editar
-                      </button>
-                    )}
-
-                    <button
-                      className='btn btn--secondary'
-                      onClick={() => clonarOrcamento(row.id)}
-                      disabled={loading}
-                    >
-                      Clonar
-                    </button>
-
                     {row.status === 'aprovado' ? (
                       <span className='orcamentos-page__status-text orcamentos-page__status-text--success'>
                         Orçamento aprovado
@@ -1030,22 +1024,13 @@ export default function Orcamentos() {
                         Orçamento rejeitado
                       </span>
                     ) : (
-                      <>
-                        <button
-                          className='btn btn--primary'
-                          onClick={() => abrirModalAprovacao(row)}
-                          disabled={loading}
-                        >
-                          Aprovar
-                        </button>
-                        <button
-                          className='btn btn--secondary'
-                          onClick={() => decide(row.id, 'rejeitado')}
-                          disabled={loading}
-                        >
-                          Rejeitar
-                        </button>
-                      </>
+                      <button
+                        className='btn btn--primary'
+                        onClick={() => abrirModalAprovacao(row)}
+                        disabled={loading}
+                      >
+                        Aprovar
+                      </button>
                     )}
                   </div>
                 );
@@ -1053,214 +1038,9 @@ export default function Orcamentos() {
             },
           ]}
           rows={rowsOrcamentos}
+          onRowContextMenu={handleOrcamentoContextMenu}
         />
       </Card>
-
-      {modalVendaOpen && (
-        <div className='orcamentos-modal'>
-          <div
-            className='orcamentos-modal__backdrop'
-            onClick={() => setModalVendaOpen(false)}
-          />
-
-          <div className='orcamentos-modal__card'>
-            <h2 className='orcamentos-modal__title'>
-              Deseja finalizar esta venda?
-            </h2>
-
-            <div className='orcamentos-modal__summary'>
-              <div className='orcamentos-modal__row'>
-                <span>Itens</span>
-                <strong>{totaisVenda.itens}</strong>
-              </div>
-
-              <div className='orcamentos-modal__row'>
-                <span>Total bruto</span>
-                <strong>{formatMoney(totaisVenda.bruto)}</strong>
-              </div>
-
-              <div className='orcamentos-modal__row'>
-                <span>Desconto dos itens</span>
-                <strong>{formatMoney(totaisVenda.descontoItens)}</strong>
-              </div>
-
-              <div className='orcamentos-modal__discount-box'>
-                <label className='orcamentos-modal__label'>
-                  Desconto geral
-                </label>
-
-                <div className='orcamentos-modal__discount-action'>
-                  <input
-                    className='orcamentos-modal__input'
-                    value={descontoGeralVenda}
-                    onChange={(e) => setDescontoGeralVenda(e.target.value)}
-                    placeholder='0,00'
-                  />
-                  <button
-                    className='btn btn--secondary'
-                    type='button'
-                    onClick={() => setDescontoGeralVenda(descontoGeralVenda)}
-                  >
-                    Aplicar desconto
-                  </button>
-                </div>
-              </div>
-
-              <div className='orcamentos-modal__row orcamentos-modal__row--total'>
-                <span>Total líquido</span>
-                <strong>{formatMoney(totaisVenda.liquido)}</strong>
-              </div>
-            </div>
-            <div className='orcamentos-modal__section'>
-              <h3 className='orcamentos-modal__section-title'>
-                Logística da venda
-              </h3>
-
-              <div className='orcamentos-modal__form-grid'>
-                <label className='orcamentos-modal__field'>
-                  <span>Tipo de entrega</span>
-                  <select
-                    value={vendaForm.tipo_entrega}
-                    onChange={(e) => {
-                      const value = e.target.value;
-
-                      if (value === 'retirada') {
-                        setUsarTransportadoraManual(false);
-                      }
-
-                      setVendaForm((prev) => ({
-                        ...prev,
-                        tipo_entrega: value,
-                        transportadora_id:
-                          value === 'retirada' ? null : prev.transportadora_id,
-                        transportadora_nome_manual:
-                          value === 'retirada'
-                            ? ''
-                            : prev.transportadora_nome_manual,
-                      }));
-                    }}
-                  >
-                    <option value='retirada'>Retirada</option>
-                    <option value='transportadora'>Transportadora</option>
-                  </select>
-                </label>
-
-                <label className='orcamentos-modal__field'>
-                  <span>Prazo de entrega</span>
-                  <input
-                    type='date'
-                    value={vendaForm.prazo_entrega}
-                    onChange={(e) =>
-                      setVendaForm((prev) => ({
-                        ...prev,
-                        prazo_entrega: e.target.value,
-                      }))
-                    }
-                  />
-                </label>
-
-                {vendaForm.tipo_entrega === 'transportadora' && (
-                  <>
-                    <label className='orcamentos-modal__field'>
-                      <span>Transportadora</span>
-                      <select
-                        value={
-                          usarTransportadoraManual
-                            ? 'outras'
-                            : vendaForm.transportadora_id || ''
-                        }
-                        onChange={(e) => {
-                          const value = e.target.value;
-
-                          if (value === 'outras') {
-                            setUsarTransportadoraManual(true);
-                            setVendaForm((prev) => ({
-                              ...prev,
-                              transportadora_id: null,
-                              transportadora_nome_manual: '',
-                            }));
-                            return;
-                          }
-
-                          setUsarTransportadoraManual(false);
-                          setVendaForm((prev) => ({
-                            ...prev,
-                            transportadora_id: value ? Number(value) : null,
-                            transportadora_nome_manual: '',
-                          }));
-                        }}
-                      >
-                        <option value=''>Selecione</option>
-
-                        {transportadoras.map((transportadora) => (
-                          <option
-                            key={transportadora.id}
-                            value={transportadora.id}
-                          >
-                            {transportadora.nome}
-                          </option>
-                        ))}
-
-                        <option value='outras'>Outras</option>
-                      </select>
-                    </label>
-
-                    {usarTransportadoraManual && (
-                      <label className='orcamentos-modal__field'>
-                        <span>Nome da transportadora</span>
-                        <input
-                          value={vendaForm.transportadora_nome_manual}
-                          onChange={(e) =>
-                            setVendaForm((prev) => ({
-                              ...prev,
-                              transportadora_nome_manual: e.target.value,
-                            }))
-                          }
-                          placeholder='Digite o nome da transportadora'
-                        />
-                      </label>
-                    )}
-                  </>
-                )}
-
-                <label className='orcamentos-modal__field orcamentos-modal__field--full'>
-                  <span>Observações de entrega</span>
-                  <textarea
-                    rows={3}
-                    value={vendaForm.observacoes_entrega}
-                    onChange={(e) =>
-                      setVendaForm((prev) => ({
-                        ...prev,
-                        observacoes_entrega: e.target.value,
-                      }))
-                    }
-                    placeholder='Ex.: cliente retira no pátio, entregar até sexta, ligar antes, etc.'
-                  />
-                </label>
-              </div>
-            </div>
-
-            <div className='orcamentos-modal__actions'>
-              <button
-                className='btn btn--secondary'
-                type='button'
-                onClick={() => setModalVendaOpen(false)}
-              >
-                Cancelar
-              </button>
-
-              <button
-                className='btn btn--primary'
-                type='button'
-                onClick={lancarVenda}
-                disabled={loadingVenda}
-              >
-                {loadingVenda ? 'Lançando...' : 'Lançar venda'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {modalImpressaoOpen && (
         <div className='orcamentos-modal'>
@@ -1289,6 +1069,7 @@ export default function Orcamentos() {
                 onClick={() => {
                   const html = gerarHtmlDocumento({
                     tipo: documentoParaImprimir.tipo,
+                    numero: documentoParaImprimir.numero,
                     empresa: {
                       nome: 'TORNEADORA UNIVERSAL',
                       logoUrl: '/logo.png',
@@ -1301,6 +1082,9 @@ export default function Orcamentos() {
                     cliente: documentoParaImprimir.cliente,
                     itens: documentoParaImprimir.itens,
                     totais: documentoParaImprimir.totais,
+                    formas_pagamento:
+                      documentoParaImprimir.formas_pagamento || [],
+                    observacoes: documentoParaImprimir.observacoes || '',
                     assinaturaProprietarioUrl: '/assinatura-proprietario.png',
                   });
 
@@ -1321,6 +1105,8 @@ export default function Orcamentos() {
         onConfirm={confirmarSalvarOrcamento}
         itens={itens}
         descontoGeralInicial={descontoGeral}
+        observacoesInicial={observacoes}
+        pagamentosIniciais={pagamentos}
         modo={modoFormulario}
       />
       <OrcamentoItemContextMenu
@@ -1352,7 +1138,7 @@ export default function Orcamentos() {
           <div className='orcamentos-modal__card'>
             <h2 className='orcamentos-modal__title'>Aprovar orçamento</h2>
             <p className='orcamentos-modal__subtitle'>
-              Complete os dados necessários para gerar a venda a partir deste
+              Confirme os dados necessários para concluir a aprovação deste
               orçamento.
             </p>
 
@@ -1703,6 +1489,55 @@ export default function Orcamentos() {
         formatarValor={(item) =>
           item.nome_fantasia || item.nome || `#${item.id}`
         }
+      />
+
+      <ActionContextMenu
+        open={listaContextMenuOpen}
+        x={listaContextMenuX}
+        y={listaContextMenuY}
+        onClose={() => setListaContextMenuOpen(false)}
+        actions={[
+          {
+            key: 'edit',
+            label: 'Editar',
+            visible:
+              orcamentoContexto &&
+              ['rascunho', 'enviado'].includes(orcamentoContexto.status),
+            onClick: () => editarOrcamento(orcamentoContexto.id),
+          },
+          {
+            key: 'clone',
+            label: 'Clonar',
+            visible: !!orcamentoContexto,
+            onClick: () => clonarOrcamento(orcamentoContexto.id),
+          },
+          {
+            key: 'print',
+            label: 'Imprimir orçamento',
+            visible: !!orcamentoContexto,
+            onClick: () => imprimirOrcamentoExistente(orcamentoContexto.id),
+          },
+          {
+            key: 'reject',
+            label: 'Rejeitar',
+            danger: true,
+            visible:
+              orcamentoContexto &&
+              !['aprovado', 'rejeitado'].includes(orcamentoContexto.status),
+            onClick: () => decide(orcamentoContexto.id, 'rejeitado'),
+          },
+        ]}
+      />
+
+      <ObservacoesModal
+        open={modalObservacoesOpen}
+        initialValue={observacoes}
+        onClose={() => setModalObservacoesOpen(false)}
+        onSave={(texto) => {
+          setObservacoes(texto);
+          setModalObservacoesOpen(false);
+          showToast('Observações atualizadas', 'success');
+        }}
       />
     </>
   );

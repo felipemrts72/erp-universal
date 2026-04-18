@@ -1,4 +1,5 @@
 import { pool } from '../database/pool.js';
+import { pagamentoRepository } from './pagamentoRepository.js';
 
 export const vendaRepository = {
   async createFromOrcamento(orcamento, itens, entrega = {}) {
@@ -16,9 +17,11 @@ export const vendaRepository = {
         transportadora_id,
         transportadora_nome_manual,
         observacoes_entrega,
-        prazo_entrega
+        prazo_entrega,
+        observacoes,
+        desconto_geral
       )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        RETURNING *`,
         [
           orcamento.id,
@@ -29,21 +32,38 @@ export const vendaRepository = {
           entrega.transportadora_nome_manual || null,
           entrega.observacoes_entrega || null,
           entrega.prazo_entrega || null,
+          entrega.observacoes || orcamento.observacoes || null,
+          entrega.desconto_geral ?? orcamento.desconto_geral ?? 0,
         ],
       );
 
       for (const item of itens) {
         await client.query(
-          `INSERT INTO itens_vendas (venda_id, produto_id, quantidade, preco_unitario)
-         VALUES ($1,$2,$3,$4)`,
+          `INSERT INTO itens_vendas (
+            venda_id,
+            produto_id,
+            quantidade,
+            preco_unitario,
+            desconto_valor,
+            desconto_percentual
+          )
+         VALUES ($1,$2,$3,$4,$5,$6)`,
           [
             venda.rows[0].id,
             item.produto_id,
             item.quantidade,
             item.preco_unitario,
+            item.desconto_valor || 0,
+            item.desconto_percentual || 0,
           ],
         );
       }
+
+      await pagamentoRepository.substituirPagamentosVenda(
+        venda.rows[0].id,
+        entrega.formas_pagamento || orcamento.formas_pagamento || [],
+        client,
+      );
 
       await client.query('COMMIT');
       return venda.rows[0];
@@ -54,6 +74,7 @@ export const vendaRepository = {
       client.release();
     }
   },
+
   async createDireta({
     clienteNome,
     cliente_id,
@@ -62,6 +83,9 @@ export const vendaRepository = {
     transportadora_nome_manual,
     observacoes_entrega,
     prazo_entrega,
+    observacoes,
+    desconto_geral = 0,
+    formas_pagamento = [],
     itens,
   }) {
     const client = await pool.connect();
@@ -70,17 +94,21 @@ export const vendaRepository = {
       await client.query('BEGIN');
 
       const venda = await client.query(
-        `INSERT INTO vendas (
+        `
+        INSERT INTO vendas (
         cliente_id,
         cliente_nome,
         tipo_entrega,
         transportadora_id,
         transportadora_nome_manual,
         observacoes_entrega,
-        prazo_entrega
+        prazo_entrega,
+        observacoes,
+        desconto_geral
       )
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
-       RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       RETURNING *
+       `,
         [
           cliente_id || null,
           clienteNome,
@@ -89,22 +117,38 @@ export const vendaRepository = {
           transportadora_nome_manual || null,
           observacoes_entrega || null,
           prazo_entrega || null,
+          observacoes || null,
+          desconto_geral || 0,
         ],
       );
 
       for (const item of itens) {
         await client.query(
-          `INSERT INTO itens_vendas (venda_id, produto_id, quantidade, preco_unitario)
-         VALUES ($1,$2,$3,$4)`,
+          `INSERT INTO itens_vendas (
+            venda_id,
+            produto_id,
+            quantidade,
+            preco_unitario,
+            desconto_valor,
+            desconto_percentual
+          )
+         VALUES ($1,$2,$3,$4,$5,$6)`,
           [
             venda.rows[0].id,
             item.produto_id,
             item.quantidade,
             item.preco_unitario,
+            item.desconto_valor || 0,
+            item.desconto_percentual || 0,
           ],
         );
       }
 
+      await pagamentoRepository.substituirPagamentosVenda(
+        venda.rows[0].id,
+        formas_pagamento || [],
+        client,
+      );
       await client.query('COMMIT');
       return venda.rows[0];
     } catch (error) {
@@ -132,6 +176,8 @@ export const vendaRepository = {
       v.transportadora_nome_manual,
       v.observacoes_entrega,
       v.prazo_entrega,
+      v.observacoes,
+      v.desconto_geral,
       t.nome AS transportadora_nome,
 
       COALESCE(
@@ -151,6 +197,8 @@ export const vendaRepository = {
             'produto_id', iv.produto_id,
             'quantidade', iv.quantidade,
             'preco_unitario', iv.preco_unitario,
+            'desconto_valor', iv.desconto_valor,
+            'desconto_percentual', iv.desconto_percentual,
             'produto_nome', p.nome,
             'tipo', p.tipo
           )
@@ -167,7 +215,21 @@ export const vendaRepository = {
     ORDER BY v.id DESC
   `);
 
-    return rows;
+    const vendasComPagamentos = [];
+
+    for (const row of rows) {
+      const formas_pagamento = await pagamentoRepository.listarPagamentosVenda(
+        row.id,
+        pool,
+      );
+
+      vendasComPagamentos.push({
+        ...row,
+        formas_pagamento,
+      });
+    }
+
+    return vendasComPagamentos;
   },
   async getReservadoPorVenda() {
     const { rows } = await pool.query(`

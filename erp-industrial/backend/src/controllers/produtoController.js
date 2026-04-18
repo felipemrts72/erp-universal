@@ -30,4 +30,8 @@ export const produtoController = {
     const result = await produtoService.buscar(q, tiposArray);
     res.json(result);
   },
+  async getById(req, res) {
+    const result = await produtoService.getById(Number(req.params.id));
+    res.json(result);
+  },
 };

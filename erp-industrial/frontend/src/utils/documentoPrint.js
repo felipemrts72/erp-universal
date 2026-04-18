@@ -11,29 +11,64 @@ function formatDate(date = new Date()) {
 
 export function gerarHtmlDocumento({
   tipo = 'orcamento',
+  numero = '',
   empresa,
   cliente,
   itens,
   totais,
+  formas_pagamento = [],
+  observacoes = '',
   assinaturaProprietarioUrl,
 }) {
-  const titulo = tipo === 'venda' ? 'PEDIDO DE VENDA' : 'ORÇAMENTO';
+  const titulo =
+    tipo === 'venda' ? `VENDA #${numero || ''}` : `ORÇAMENTO #${numero || ''}`;
 
-  const mostrarAssinaturaProprietario = tipo === 'orcamento';
+  const mostrarAssinaturaProprietario = true;
+  const mostrarAssinaturaCliente = true;
 
-  const itensHtml = itens
+  const itensHtml = (itens || [])
     .map(
       (item, index) => `
         <tr>
           <td>${index + 1}</td>
-          <td>${item.nome_customizado || item.produto_nome || '-'}</td>
-          <td>${item.quantidade}</td>
-          <td>${formatMoney(item.preco_unitario)}</td>
-          <td>${item.desconto_label || '-'}</td>
-          <td>${formatMoney(item.total_liquido)}</td>
+          <td class="descricao-item">${item.nome_customizado || item.produto_nome || '-'}</td>
+          <td>${item.quantidade ?? '-'}</td>
+          <td class="valor-forte">${formatMoney(item.preco_unitario)}</td>
+          <td class="valor-forte">${item.desconto_label || '-'}</td>
+          <td class="valor-forte">${formatMoney(item.total_liquido)}</td>
         </tr>
       `,
     )
+    .join('');
+
+  const pagamentosHtml = (formas_pagamento || [])
+    .map((pagamento) => {
+      const detalhesParcelas =
+        pagamento.forma === 'cartao_credito'
+          ? ` - ${pagamento.parcelas || 1}x`
+          : '';
+
+      const detalhesDatas =
+        pagamento.forma === 'cheque' || pagamento.forma === 'boleto'
+          ? `
+            <div style="font-size: 11px; color: #475569; margin-top: 4px;">
+              ${(pagamento.datas || [])
+                .map((data, index) => `Parcela ${index + 1}: ${data || '-'}`)
+                .join('<br />')}
+            </div>
+          `
+          : '';
+
+      return `
+        <div class="pagamento-item">
+          <div>
+            <strong>${pagamento.forma || '-'}</strong>${detalhesParcelas}
+          </div>
+          <div><strong>${formatMoney(pagamento.valor)}</strong></div>
+          ${detalhesDatas}
+        </div>
+      `;
+    })
     .join('');
 
   return `
@@ -151,11 +186,16 @@ export function gerarHtmlDocumento({
             justify-content: space-between;
             gap: 40px;
             margin-top: 70px;
+            align-items: flex-end;
           }
 
           .assinatura {
             flex: 1;
             text-align: center;
+          }
+
+          .assinatura--cliente {
+            margin-top: 28px;
           }
 
           .assinatura__imagem {
@@ -178,6 +218,48 @@ export function gerarHtmlDocumento({
             color: #4b5563;
             line-height: 1.5;
           }
+
+          .descricao-item {
+            font-weight: 800;
+            color: #111827;
+          }
+
+          .valor-forte {
+            font-weight: 800;
+            color: #111827;
+          }
+
+          .resumo-grid {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 24px;
+            margin-top: 18px;
+            align-items: start;
+          }
+
+          .pagamentos-box,
+          .observacoes-box {
+            border: 1px solid #dbe1ea;
+            border-radius: 12px;
+            padding: 12px;
+            background: #fff;
+          }
+
+          .pagamento-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 13px;
+          }
+
+          .pagamento-item:last-child {
+            border-bottom: 0;
+          }
+
+          .observacoes-box {
+            margin-top: 18px;
+            border: 1px solid #fecaca;
+            background: #fff5f5;
+          }
         </style>
       </head>
       <body>
@@ -199,8 +281,13 @@ export function gerarHtmlDocumento({
             <div class="bloco__titulo">Dados do cliente</div>
             <div class="linha"><strong>Nome:</strong> ${cliente.nome || '-'}</div>
             <div class="linha"><strong>Endereço:</strong> ${cliente.endereco || '-'}</div>
+            <div class="linha"><strong>Número:</strong> ${cliente.numero || '-'}</div>
+            <div class="linha"><strong>Bairro:</strong> ${cliente.bairro || '-'}</div>
             <div class="linha"><strong>Cidade:</strong> ${cliente.cidade || '-'}</div>
             <div class="linha"><strong>CEP:</strong> ${cliente.cep || '-'}</div>
+            <div class="linha"><strong>Telefone:</strong> ${cliente.telefone || '-'}</div>
+            <div class="linha"><strong>E-mail:</strong> ${cliente.email || '-'}</div>
+            <div class="linha"><strong>CPF/CNPJ:</strong> ${cliente.cpf_cnpj || '-'}</div>
           </div>
 
           <div class="bloco">
@@ -222,23 +309,35 @@ export function gerarHtmlDocumento({
             </table>
           </div>
 
-          <div class="totais">
-            <div class="totais__linha">
-              <span>Total bruto</span>
-              <strong>${formatMoney(totais.bruto)}</strong>
+          <div class="resumo-grid">
+            <div class="pagamentos-box">
+              <div class="bloco__titulo">Forma de pagamento</div>
+              ${pagamentosHtml || '<div class="linha">Não informado</div>'}
             </div>
-            <div class="totais__linha">
-              <span>Desconto dos itens</span>
-              <strong>${formatMoney(totais.descontoItens)}</strong>
+
+            <div class="totais">
+              <div class="totais__linha">
+                <span>Total bruto</span>
+                <strong>${formatMoney(totais.bruto)}</strong>
+              </div>
+              <div class="totais__linha">
+                <span>Desconto dos itens</span>
+                <strong>${formatMoney(totais.descontoItens)}</strong>
+              </div>
+              <div class="totais__linha">
+                <span>Desconto geral</span>
+                <strong>${formatMoney(totais.descontoGeral)}</strong>
+              </div>
+              <div class="totais__linha totais__linha--final">
+                <span>Total líquido</span>
+                <strong>${formatMoney(totais.liquido)}</strong>
+              </div>
             </div>
-            <div class="totais__linha">
-              <span>Desconto geral</span>
-              <strong>${formatMoney(totais.descontoGeral)}</strong>
-            </div>
-            <div class="totais__linha totais__linha--final">
-              <span>Total líquido</span>
-              <strong>${formatMoney(totais.liquido)}</strong>
-            </div>
+          </div>
+
+          <div class="observacoes-box">
+            <div class="bloco__titulo">Observações</div>
+            <div class="linha">${observacoes || '-'}</div>
           </div>
 
           <div class="disclaimer">
@@ -256,14 +355,10 @@ export function gerarHtmlDocumento({
                   ? `<img class="assinatura__imagem" src="${assinaturaProprietarioUrl}" alt="Assinatura do proprietário" />`
                   : ''
               }
-              ${
-                mostrarAssinaturaProprietario
-                  ? '<div class="assinatura__linha">Senival Martins de Menezes</div>'
-                  : '<div class="assinatura__linha">&nbsp;</div>'
-              }
+              <div class="assinatura__linha">Senival Martins de Menezes</div>
             </div>
 
-            <div class="assinatura">
+            <div class="assinatura assinatura--cliente">
               <div class="assinatura__linha">Assinatura do cliente</div>
             </div>
           </div>
@@ -272,6 +367,7 @@ export function gerarHtmlDocumento({
     </html>
   `;
 }
+
 export function imprimirDocumento(html) {
   const printWindow = window.open('', '_blank', 'width=900,height=700');
 

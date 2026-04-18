@@ -1,3 +1,5 @@
+import { pool } from '../database/pool.js';
+
 export const consumivelRepository = {
   async buscarProdutoPorId(produtoId, client) {
     const { rows } = await client.query(

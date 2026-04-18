@@ -11,6 +11,11 @@ CREATE DATABASE erp_industrial;
 \c erp_industrial
 
 -- =========================
+-- EXTENSÕES
+-- =========================
+CREATE EXTENSION IF NOT EXISTS unaccent;
+
+-- =========================
 -- FUNCIONÁRIOS
 -- =========================
 CREATE TABLE IF NOT EXISTS funcionarios (
@@ -48,10 +53,15 @@ CREATE TABLE IF NOT EXISTS usuarios (
 CREATE TABLE IF NOT EXISTS clientes (
   id SERIAL PRIMARY KEY,
   nome VARCHAR(120) NOT NULL,
+  nome_fantasia VARCHAR(120),
   cpf_cnpj VARCHAR(20),
   telefone VARCHAR(20),
   email VARCHAR(120),
   endereco TEXT,
+  numero VARCHAR(20),
+  bairro VARCHAR(120),
+  cidade VARCHAR(120),
+  cep VARCHAR(20),
   observacoes TEXT,
   status VARCHAR(20) NOT NULL DEFAULT 'ativo' CHECK (
     status IN ('ativo', 'inativo')
@@ -125,6 +135,21 @@ CREATE TABLE IF NOT EXISTS consumos_consumiveis (
 );
 
 -- =========================
+-- TRANSPORTADORAS
+-- =========================
+CREATE TABLE IF NOT EXISTS transportadoras (
+  id SERIAL PRIMARY KEY,
+  nome VARCHAR(150) NOT NULL,
+  cnpj VARCHAR(20),
+  telefone VARCHAR(20),
+  email VARCHAR(120),
+  cidade VARCHAR(120),
+  observacoes TEXT,
+  ativo BOOLEAN NOT NULL DEFAULT TRUE,
+  criado_em TIMESTAMP DEFAULT NOW()
+);
+
+-- =========================
 -- ORÇAMENTOS
 -- =========================
 CREATE TABLE IF NOT EXISTS orcamentos (
@@ -132,6 +157,7 @@ CREATE TABLE IF NOT EXISTS orcamentos (
   cliente_id INTEGER REFERENCES clientes(id) ON DELETE SET NULL,
   cliente_nome VARCHAR(120) NOT NULL,
   desconto_geral NUMERIC(12,2) NOT NULL DEFAULT 0,
+  observacoes TEXT,
   status VARCHAR(20) NOT NULL CHECK (
     status IN ('rascunho', 'enviado', 'aprovado', 'rejeitado')
   ) DEFAULT 'rascunho',
@@ -151,6 +177,38 @@ CREATE TABLE IF NOT EXISTS itens_orcamento (
   nome_customizado VARCHAR(200)
 );
 
+CREATE TABLE IF NOT EXISTS orcamento_formas_pagamento (
+  id SERIAL PRIMARY KEY,
+  orcamento_id INTEGER NOT NULL REFERENCES orcamentos(id) ON DELETE CASCADE,
+  forma VARCHAR(50) NOT NULL CHECK (
+    forma IN (
+      'dinheiro',
+      'pix',
+      'cartao_debito',
+      'cartao_credito',
+      'boleto',
+      'cheque',
+      'transferencia',
+      'outro'
+    )
+  ),
+  valor NUMERIC(14,2) NOT NULL DEFAULT 0 CHECK (valor > 0),
+  parcelas INTEGER NOT NULL DEFAULT 1 CHECK (parcelas >= 1),
+  ordem INTEGER NOT NULL DEFAULT 0,
+  criado_em TIMESTAMP NOT NULL DEFAULT NOW(),
+  atualizado_em TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS orcamento_pagamento_parcelas (
+  id SERIAL PRIMARY KEY,
+  forma_pagamento_id INTEGER NOT NULL REFERENCES orcamento_formas_pagamento(id) ON DELETE CASCADE,
+  numero_parcela INTEGER NOT NULL CHECK (numero_parcela >= 1),
+  data_vencimento DATE,
+  valor NUMERIC(14,2) NOT NULL DEFAULT 0 CHECK (valor >= 0),
+  criado_em TIMESTAMP NOT NULL DEFAULT NOW(),
+  atualizado_em TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
 -- =========================
 -- VENDAS
 -- =========================
@@ -159,6 +217,14 @@ CREATE TABLE IF NOT EXISTS vendas (
   orcamento_id INTEGER REFERENCES orcamentos(id),
   cliente_id INTEGER REFERENCES clientes(id) ON DELETE SET NULL,
   cliente_nome VARCHAR(120) NOT NULL,
+  tipo_entrega VARCHAR(20) NOT NULL DEFAULT 'retirada' CHECK (
+    tipo_entrega IN ('retirada', 'transportadora')
+  ),
+  transportadora_id INTEGER REFERENCES transportadoras(id) ON DELETE SET NULL,
+  transportadora_nome_manual VARCHAR(150),
+  observacoes_entrega TEXT,
+  prazo_entrega DATE,
+  observacoes TEXT,
   status VARCHAR(30) NOT NULL DEFAULT 'aberto' CHECK (
     status IN ('aberto', 'parcial', 'finalizado', 'cancelado')
   ),
@@ -171,6 +237,38 @@ CREATE TABLE IF NOT EXISTS itens_vendas (
   produto_id INTEGER NOT NULL REFERENCES produtos(id),
   quantidade NUMERIC(12,2) NOT NULL CHECK (quantidade > 0),
   preco_unitario NUMERIC(12,2) NOT NULL CHECK (preco_unitario >= 0)
+);
+
+CREATE TABLE IF NOT EXISTS venda_formas_pagamento (
+  id SERIAL PRIMARY KEY,
+  venda_id INTEGER NOT NULL REFERENCES vendas(id) ON DELETE CASCADE,
+  forma VARCHAR(50) NOT NULL CHECK (
+    forma IN (
+      'dinheiro',
+      'pix',
+      'cartao_debito',
+      'cartao_credito',
+      'boleto',
+      'cheque',
+      'transferencia',
+      'outro'
+    )
+  ),
+  valor NUMERIC(14,2) NOT NULL DEFAULT 0 CHECK (valor > 0),
+  parcelas INTEGER NOT NULL DEFAULT 1 CHECK (parcelas >= 1),
+  ordem INTEGER NOT NULL DEFAULT 0,
+  criado_em TIMESTAMP NOT NULL DEFAULT NOW(),
+  atualizado_em TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS venda_pagamento_parcelas (
+  id SERIAL PRIMARY KEY,
+  forma_pagamento_id INTEGER NOT NULL REFERENCES venda_formas_pagamento(id) ON DELETE CASCADE,
+  numero_parcela INTEGER NOT NULL CHECK (numero_parcela >= 1),
+  data_vencimento DATE,
+  valor NUMERIC(14,2) NOT NULL DEFAULT 0 CHECK (valor >= 0),
+  criado_em TIMESTAMP NOT NULL DEFAULT NOW(),
+  atualizado_em TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 -- =========================
@@ -200,6 +298,8 @@ CREATE TABLE IF NOT EXISTS entregas (
     CHECK (status IN ('pendente', 'entregue')),
   tipo VARCHAR(20) DEFAULT 'retirada'
     CHECK (tipo IN ('retirada', 'transportadora')),
+  transportadora_id INTEGER REFERENCES transportadoras(id) ON DELETE SET NULL,
+  transportadora_nome_manual VARCHAR(150),
   usuario_id INTEGER REFERENCES usuarios(id),
   criado_em TIMESTAMP DEFAULT NOW(),
   entregue_em TIMESTAMP
@@ -211,17 +311,23 @@ CREATE TABLE IF NOT EXISTS entregas (
 CREATE TABLE IF NOT EXISTS relatorios_producao (
   id SERIAL PRIMARY KEY,
   ordem_producao_id INTEGER NOT NULL REFERENCES ordens_producao(id) ON DELETE CASCADE,
+  funcionario_id INTEGER REFERENCES funcionarios(id) ON DELETE SET NULL,
   nome_funcionario VARCHAR(120) NOT NULL,
   descricao TEXT NOT NULL,
-  foto_url TEXT,
   assinatura_url TEXT,
+  criado_em TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS relatorio_producao_fotos (
+  id SERIAL PRIMARY KEY,
+  relatorio_producao_id INTEGER NOT NULL REFERENCES relatorios_producao(id) ON DELETE CASCADE,
+  foto_url TEXT NOT NULL,
   criado_em TIMESTAMP DEFAULT NOW()
 );
 
 -- =========================
 -- RESERVAS_VENDA
 -- =========================
-
 CREATE TABLE IF NOT EXISTS reservas_venda (
   id SERIAL PRIMARY KEY,
   venda_id INTEGER NOT NULL REFERENCES vendas(id) ON DELETE CASCADE,
@@ -239,6 +345,9 @@ CREATE TABLE IF NOT EXISTS reservas_venda (
 CREATE INDEX IF NOT EXISTS idx_clientes_nome
 ON clientes(nome);
 
+CREATE INDEX IF NOT EXISTS idx_clientes_nome_fantasia
+ON clientes(nome_fantasia);
+
 CREATE INDEX IF NOT EXISTS idx_clientes_cpf_cnpj
 ON clientes(cpf_cnpj);
 
@@ -251,6 +360,12 @@ ON orcamentos(status);
 CREATE INDEX IF NOT EXISTS idx_itens_orcamento_orcamento
 ON itens_orcamento(orcamento_id);
 
+CREATE INDEX IF NOT EXISTS idx_orcamento_formas_pagamento_orcamento
+ON orcamento_formas_pagamento(orcamento_id);
+
+CREATE INDEX IF NOT EXISTS idx_orcamento_pagamento_parcelas_forma
+ON orcamento_pagamento_parcelas(forma_pagamento_id);
+
 CREATE INDEX IF NOT EXISTS idx_vendas_orcamento_id
 ON vendas(orcamento_id);
 
@@ -262,6 +377,12 @@ ON vendas(status);
 
 CREATE INDEX IF NOT EXISTS idx_itens_vendas_venda
 ON itens_vendas(venda_id);
+
+CREATE INDEX IF NOT EXISTS idx_venda_formas_pagamento_venda
+ON venda_formas_pagamento(venda_id);
+
+CREATE INDEX IF NOT EXISTS idx_venda_pagamento_parcelas_forma
+ON venda_pagamento_parcelas(forma_pagamento_id);
 
 CREATE INDEX IF NOT EXISTS idx_movimentos_produto
 ON movimentos_estoque(produto_id);
@@ -280,3 +401,12 @@ ON entregas(status);
 
 CREATE INDEX IF NOT EXISTS idx_entregas_venda
 ON entregas(venda_id);
+
+CREATE INDEX IF NOT EXISTS idx_transportadoras_nome
+ON transportadoras(nome);
+
+CREATE INDEX IF NOT EXISTS idx_relatorios_producao_ordem
+ON relatorios_producao(ordem_producao_id);
+
+CREATE INDEX IF NOT EXISTS idx_relatorio_producao_fotos_relatorio
+ON relatorio_producao_fotos(relatorio_producao_id);

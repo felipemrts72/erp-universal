@@ -34,11 +34,6 @@ export const orcamentoController = {
     res.json(result);
   },
 
-  async venda(req, res) {
-    const result = await orcamentoService.criarVenda(req.body);
-    res.status(201).json(result);
-  },
-
   async update(req, res) {
     const result = await orcamentoService.update(
       Number(req.params.id),
@@ -51,6 +46,7 @@ export const orcamentoController = {
     const result = await orcamentoService.clonar(Number(req.params.id));
     res.status(201).json(result);
   },
+
   async aprovar(req, res) {
     const { id } = req.params;
     const result = await orcamentoService.aprovar(Number(id), req.body);

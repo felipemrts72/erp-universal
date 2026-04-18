@@ -45,6 +45,15 @@ export default function Producao() {
     type: 'error',
   });
 
+  const [modalRelatorioOpen, setModalRelatorioOpen] = useState(false);
+  const [ordemSelecionada, setOrdemSelecionada] = useState(null);
+  const [funcionarios, setFuncionarios] = useState([]);
+  const [relatorioForm, setRelatorioForm] = useState({
+    funcionario_id: '',
+    descricao: '',
+    fotos: [],
+  });
+
   const showToast = (message, type = 'error') => {
     setToast({
       open: true,
@@ -70,6 +79,16 @@ export default function Producao() {
     return () => clearTimeout(timer);
   }, [toast.open]);
 
+  const loadFuncionarios = async () => {
+    try {
+      const { data } = await api.get('/funcionarios');
+      setFuncionarios(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(error);
+      setFuncionarios([]);
+    }
+  };
+
   const load = async () => {
     try {
       setLoading(true);
@@ -89,7 +108,70 @@ export default function Producao() {
 
   useEffect(() => {
     load();
+    loadFuncionarios();
   }, []);
+
+  const abrirModalRelatorio = (ordem) => {
+    setOrdemSelecionada(ordem);
+    setRelatorioForm({
+      funcionario_id: '',
+      descricao: '',
+      fotos: [],
+    });
+    setModalRelatorioOpen(true);
+  };
+
+  const enviarRelatorio = async () => {
+    if (!ordemSelecionada?.id) {
+      showToast('Ordem não selecionada.', 'error');
+      return;
+    }
+
+    if (!relatorioForm.funcionario_id) {
+      showToast('Selecione o funcionário.', 'error');
+      return;
+    }
+
+    if (!relatorioForm.descricao.trim()) {
+      showToast('Descreva o que está sendo feito.', 'error');
+      return;
+    }
+
+    if (relatorioForm.fotos.length > 5) {
+      showToast('Máximo de 5 fotos.', 'error');
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const formData = new FormData();
+      formData.append('ordem_producao_id', ordemSelecionada.id);
+      formData.append('funcionario_id', relatorioForm.funcionario_id);
+      formData.append('descricao', relatorioForm.descricao);
+
+      Array.from(relatorioForm.fotos).forEach((file) => {
+        formData.append('fotos', file);
+      });
+
+      await api.post('/relatorios-producao', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      showToast('Relatório enviado com sucesso.', 'success');
+      fecharModalRelatorio();
+    } catch (error) {
+      console.error(error);
+      showToast(
+        error?.response?.data?.message || 'Erro ao enviar relatório.',
+        'error',
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const iniciarOrdem = async (ordemId) => {
     try {
@@ -136,6 +218,16 @@ export default function Producao() {
       return atendeFiltro && atendeBusca;
     });
   }, [ordens, filtro, busca]);
+
+  const fecharModalRelatorio = () => {
+    setModalRelatorioOpen(false);
+    setOrdemSelecionada(null);
+    setRelatorioForm({
+      funcionario_id: '',
+      descricao: '',
+      fotos: [],
+    });
+  };
 
   return (
     <>
@@ -260,9 +352,12 @@ export default function Producao() {
                       Finalizar
                     </button>
                   )}
-
-                  <button type='button' className='btn btn--secondary' disabled>
-                    Relatórios
+                  <button
+                    type='button'
+                    className='btn btn--secondary'
+                    onClick={() => abrirModalRelatorio(ordem)}
+                  >
+                    Lançar relatório
                   </button>
                 </div>
               </article>
@@ -274,6 +369,97 @@ export default function Producao() {
           )}
         </div>
       </Card>
+
+      {modalRelatorioOpen && (
+        <div className='producao-page__modal'>
+          <div
+            className='producao-page__modal-backdrop'
+            onClick={fecharModalRelatorio}
+          />
+
+          <div className='producao-page__modal-card'>
+            <h2 className='producao-page__modal-title'>
+              Relatório da OP #{ordemSelecionada?.id}
+            </h2>
+
+            <div className='producao-page__form-grid'>
+              <label className='producao-page__field'>
+                <span>Funcionário</span>
+                <select
+                  value={relatorioForm.funcionario_id}
+                  onChange={(e) =>
+                    setRelatorioForm((prev) => ({
+                      ...prev,
+                      funcionario_id: e.target.value,
+                    }))
+                  }
+                >
+                  <option value=''>Selecione</option>
+                  {funcionarios.map((funcionario) => (
+                    <option key={funcionario.id} value={funcionario.id}>
+                      {funcionario.nome}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className='producao-page__field producao-page__field--full'>
+                <span>Descrição</span>
+                <textarea
+                  rows={6}
+                  value={relatorioForm.descricao}
+                  onChange={(e) =>
+                    setRelatorioForm((prev) => ({
+                      ...prev,
+                      descricao: e.target.value,
+                    }))
+                  }
+                  placeholder='Descreva o que está sendo feito nesta etapa...'
+                />
+              </label>
+
+              <label className='producao-page__field producao-page__field--full'>
+                <span>Fotos (até 5)</span>
+                <input
+                  type='file'
+                  accept='image/*'
+                  multiple
+                  onChange={(e) =>
+                    setRelatorioForm((prev) => ({
+                      ...prev,
+                      fotos: e.target.files,
+                    }))
+                  }
+                />
+                {relatorioForm.fotos?.length ? (
+                  <small>
+                    {relatorioForm.fotos.length} foto(s) selecionada(s)
+                  </small>
+                ) : null}
+              </label>
+            </div>
+
+            <div className='producao-page__modal-actions'>
+              <button
+                type='button'
+                className='btn btn--secondary'
+                onClick={fecharModalRelatorio}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type='button'
+                className='btn btn--primary'
+                onClick={enviarRelatorio}
+                disabled={saving}
+              >
+                {saving ? 'Enviando...' : 'Enviar relatório'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

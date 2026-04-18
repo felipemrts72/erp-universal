@@ -25,4 +25,8 @@ export const clienteController = {
     const result = await clienteService.buscar(req.query.q);
     res.json(result);
   },
+  async getById(req, res) {
+    const result = await clienteService.getById(Number(req.params.id));
+    res.json(result);
+  },
 };

@@ -98,4 +98,12 @@ export const funcionarioRepository = {
 
     return rows;
   },
+  async getById(id) {
+    const { rows } = await pool.query(
+      `SELECT * FROM funcionarios WHERE id = $1`,
+      [id],
+    );
+
+    return rows[0] || null;
+  },
 };
