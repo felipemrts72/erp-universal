@@ -409,8 +409,8 @@ export default function Vendas() {
       showToast('Venda criada com sucesso', 'success');
 
       const clienteDocumento = await montarClienteDocumento(
-        clienteForm.cliente_id,
-        clienteForm.clienteNome,
+        data?.cliente_id || clienteForm.cliente_id,
+        data?.cliente_nome || clienteForm.clienteNome,
       );
 
       setDocumentoParaImprimir({
@@ -772,7 +772,10 @@ export default function Vendas() {
                         Total líquido
                       </span>
                       <strong className='vendas-page__summary-total'>
-                        Total líquido: {formatMoney(totais.liquido)}
+                        Total líquido:{' '}
+                        {formatMoney(
+                          venda.valor_liquido || venda.valor_total || 0,
+                        )}
                       </strong>
                     </div>
                   </div>

@@ -226,8 +226,8 @@ router.delete(
 
 // CLIENTES
 router.post('/clientes', asyncHandler(clienteController.create));
+router.get('/clientes', asyncHandler(clienteController.list));
 router.get('/clientes/busca', asyncHandler(clienteController.buscar));
 router.get('/clientes/:id', asyncHandler(clienteController.getById));
-router.get('/clientes', asyncHandler(clienteController.list));
 router.patch('/clientes/:id', asyncHandler(clienteController.update));
 router.delete('/clientes/:id', asyncHandler(clienteController.delete));

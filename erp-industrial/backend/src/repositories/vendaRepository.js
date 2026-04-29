@@ -168,6 +168,7 @@ export const vendaRepository = {
     SELECT
       v.id,
       v.orcamento_id,
+      v.cliente_id,
       v.cliente_nome,
       v.status,
       v.criado_em,
@@ -189,7 +190,19 @@ export const vendaRepository = {
         SUM(iv.quantidade),
         0
       ) AS total_itens,
-
+      COALESCE(
+        SUM(
+          (iv.quantidade * iv.preco_unitario)
+          -
+          CASE
+            WHEN COALESCE(iv.desconto_valor, 0) > 0
+              THEN COALESCE(iv.desconto_valor, 0) * iv.quantidade
+            ELSE
+              (iv.quantidade * iv.preco_unitario) * (COALESCE(iv.desconto_percentual, 0)::numeric / 100)
+          END
+        ),
+        0
+      ) - COALESCE(v.desconto_geral, 0) AS valor_liquido,
       COALESCE(
         json_agg(
           json_build_object(

@@ -50,6 +50,7 @@ export default function Orcamentos() {
   const { showToast } = useToast();
   const [orcamentos, setOrcamentos] = useState([]);
   const [clienteNome, setClienteNome] = useState('');
+  const [clienteTelefone, setClienteTelefone] = useState('');
   const [clienteId, setClienteId] = useState(null);
   const [buscaId, setBuscaId] = useState(null);
   const [descontoGeral, setDescontoGeral] = useState(0);
@@ -312,6 +313,7 @@ export default function Orcamentos() {
 
   const limparFormulario = () => {
     setClienteNome('');
+    setClienteTelefone('');
     setClienteId(null);
     setItens([]);
     setItemForm(initialItem);
@@ -704,14 +706,10 @@ export default function Orcamentos() {
     if (!cliente_id) {
       return {
         nome: fallbackNome || '',
-        endereco: '',
-        numero: '',
-        bairro: '',
-        cidade: '',
-        cep: '',
-        telefone: '',
-        email: '',
+        telefone: clienteTelefone || '',
         cpf_cnpj: '',
+        email: '',
+        cliente_salvo: false,
       };
     }
 
@@ -720,28 +718,20 @@ export default function Orcamentos() {
 
       return {
         nome: data.nome_fantasia || data.nome || fallbackNome || '',
-        endereco: data.endereco || '',
-        numero: data.numero || '',
-        bairro: data.bairro || '',
-        cidade: data.cidade || '',
-        cep: data.cep || '',
         telefone: data.telefone || '',
-        email: data.email || '',
         cpf_cnpj: data.cpf_cnpj || '',
+        email: data.email || '',
+        cliente_salvo: true,
       };
     } catch (error) {
       console.error('Erro ao buscar cliente para impressão:', error);
 
       return {
         nome: fallbackNome || '',
-        endereco: '',
-        numero: '',
-        bairro: '',
-        cidade: '',
-        cep: '',
-        telefone: '',
-        email: '',
+        telefone: clienteTelefone || '',
         cpf_cnpj: '',
+        email: '',
+        cliente_salvo: false,
       };
     }
   };
@@ -794,6 +784,12 @@ export default function Orcamentos() {
                   setClienteId(null);
                 }}
                 placeholder='Digite o nome do cliente ou use a lupa'
+              />
+              <input
+                className='orcamentos-page__input'
+                value={clienteTelefone}
+                onChange={(e) => setClienteTelefone(e.target.value)}
+                placeholder='Telefone do cliente'
               />
 
               <button
@@ -1484,6 +1480,7 @@ export default function Orcamentos() {
         onConfirm={(item) => {
           setClienteId(item.id);
           setClienteNome(item.nome_fantasia || item.nome || '');
+          setClienteTelefone(item.telefone || '');
           setModalClienteOpen(false);
         }}
         formatarValor={(item) =>

@@ -135,6 +135,17 @@ export function gerarHtmlDocumento({
             margin-bottom: 8px;
             color: #1e3a8a;
           }
+            .cliente-grid {
+              display: grid;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 6px 24px;
+            }
+
+            @media print {
+              .cliente-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+              }
+            }
 
           .linha {
             margin-bottom: 4px;
@@ -260,6 +271,7 @@ export function gerarHtmlDocumento({
             border: 1px solid #fecaca;
             background: #fff5f5;
           }
+
         </style>
       </head>
       <body>
@@ -279,15 +291,25 @@ export function gerarHtmlDocumento({
 
           <div class="bloco">
             <div class="bloco__titulo">Dados do cliente</div>
-            <div class="linha"><strong>Nome:</strong> ${cliente.nome || '-'}</div>
-            <div class="linha"><strong>Endereço:</strong> ${cliente.endereco || '-'}</div>
-            <div class="linha"><strong>Número:</strong> ${cliente.numero || '-'}</div>
-            <div class="linha"><strong>Bairro:</strong> ${cliente.bairro || '-'}</div>
-            <div class="linha"><strong>Cidade:</strong> ${cliente.cidade || '-'}</div>
-            <div class="linha"><strong>CEP:</strong> ${cliente.cep || '-'}</div>
-            <div class="linha"><strong>Telefone:</strong> ${cliente.telefone || '-'}</div>
-            <div class="linha"><strong>E-mail:</strong> ${cliente.email || '-'}</div>
-            <div class="linha"><strong>CPF/CNPJ:</strong> ${cliente.cpf_cnpj || '-'}</div>
+
+            <div class="cliente-grid">
+              <div class="linha"><strong>Nome:</strong> ${cliente.nome || '-'}</div>
+              ${
+                tipo === 'venda'
+                  ? `
+                    <div class="linha"><strong>CPF/CNPJ:</strong> ${cliente.cpf_cnpj || '-'}</div>
+                    <div class="linha"><strong>Telefone:</strong> ${cliente.telefone || '-'}</div>
+                    <div class="linha"><strong>E-mail:</strong> ${cliente.email || '-'}</div>
+                  `
+                  : cliente.cliente_salvo
+                    ? `
+                      <div class="linha"><strong>CPF/CNPJ:</strong> ${cliente.cpf_cnpj || '-'}</div>
+                      <div class="linha"><strong>Telefone:</strong> ${cliente.telefone || '-'}</div>
+                      <div class="linha"><strong>E-mail:</strong> ${cliente.email || '-'}</div>
+                    `
+                    : ''
+              }
+            </div>
           </div>
 
           <div class="bloco">
