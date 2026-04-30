@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import Card from '../../components/Card';
-import DataTable from '../../components/DataTable';
-import StatusBadge from '../../components/StatusBadge';
 import './style.css';
 
 function parseJwt(token) {
@@ -20,6 +19,11 @@ function formatMoney(value) {
   });
 }
 
+function formatDate(value) {
+  if (!value) return '-';
+  return new Date(value).toLocaleDateString('pt-BR');
+}
+
 export default function Dashboard() {
   const [financeiro, setFinanceiro] = useState(null);
   const [modoDashboard, setModoDashboard] = useState('estoque');
@@ -31,6 +35,10 @@ export default function Dashboard() {
   const [resumo, setResumo] = useState(null);
   const [alertas, setAlertas] = useState([]);
   const [entregas, setEntregas] = useState([]);
+
+  const [modalAlertasOpen, setModalAlertasOpen] = useState(false);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     const load = async () => {
@@ -101,45 +109,79 @@ export default function Dashboard() {
             ))}
           </section>
 
-          <Card title='Alertas operacionais'>
-            <ul className='dashboard__alerts'>
-              {(alertas.length
-                ? alertas
-                : ['Sem alertas críticos no momento.']
-              ).map((alerta, idx) => (
-                <li key={idx}>{alerta.mensagem || alerta}</li>
-              ))}
-            </ul>
-          </Card>
+          <div
+            className='dashboard-alert-card'
+            onClick={() => setModalAlertasOpen(true)}
+            role='button'
+            tabIndex={0}
+          >
+            <div>
+              <span className='dashboard-alert-card__label'>
+                Alertas operacionais
+              </span>
 
-          <Card title='Entregas pendentes'>
-            <DataTable
-              columns={[
-                { key: 'id', label: 'ID' },
-                {
-                  key: 'produto_nome',
-                  label: 'Produto',
-                  render: (_, row) => row.produto_nome || '-',
-                },
-                {
-                  key: 'criado_em',
-                  label: 'Criado em',
-                  render: (_, row) =>
-                    row.criado_em
-                      ? new Date(row.criado_em).toLocaleDateString('pt-BR')
-                      : '-',
-                },
-                {
-                  key: 'status',
-                  label: 'Status',
-                  render: (_, row) => (
-                    <StatusBadge status={row.status || 'Pendente'} />
-                  ),
-                },
-              ]}
-              rows={entregas}
-            />
-          </Card>
+              <strong>
+                {alertas.length
+                  ? `${alertas.length} itens estão abaixo do mínimo`
+                  : 'Nenhum item abaixo do mínimo'}
+              </strong>
+            </div>
+
+            <span className='dashboard-alert-card__action'>Ver relatório</span>
+          </div>
+
+          <div className='dashboard-section'>
+            <h2>Vendas pendentes</h2>
+
+            <div className='dashboard-sales-grid'>
+              {entregas.length ? (
+                entregas.map((entrega) => (
+                  <article
+                    key={entrega.id}
+                    className='dashboard-sale-card'
+                    onClick={() => navigate('/vendas')}
+                    role='button'
+                    tabIndex={0}
+                  >
+                    <div className='dashboard-sale-card__top'>
+                      <strong>Venda #{entrega.venda_id || entrega.id}</strong>
+                      <span>{entrega.status || 'pendente'}</span>
+                    </div>
+
+                    <div className='dashboard-sale-card__info'>
+                      <small>Cliente</small>
+                      <strong>{entrega.cliente_nome || '-'}</strong>
+                    </div>
+
+                    <div className='dashboard-sale-card__grid'>
+                      <div>
+                        <small>Criada em</small>
+                        <strong>{formatDate(entrega.criado_em)}</strong>
+                      </div>
+
+                      <div>
+                        <small>Entrega</small>
+                        <strong>{formatDate(entrega.prazo_entrega)}</strong>
+                      </div>
+
+                      <div>
+                        <small>Valor</small>
+                        <strong>
+                          {entrega.valor_liquido || entrega.valor_total
+                            ? formatMoney(
+                                entrega.valor_liquido || entrega.valor_total,
+                              )
+                            : 'Ver em vendas'}
+                        </strong>
+                      </div>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <div className='dashboard-empty'>Nenhuma venda pendente.</div>
+              )}
+            </div>
+          </div>
         </>
       ) : (
         <>
@@ -197,6 +239,45 @@ export default function Dashboard() {
             />
           </Card>
         </>
+      )}
+      {modalAlertasOpen && (
+        <div className='dashboard-modal'>
+          <div
+            className='dashboard-modal__backdrop'
+            onClick={() => setModalAlertasOpen(false)}
+          />
+
+          <div className='dashboard-modal__card'>
+            <div className='dashboard-modal__header'>
+              <h2>Itens abaixo do mínimo</h2>
+
+              <button
+                type='button'
+                className='dashboard-modal__close'
+                onClick={() => setModalAlertasOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className='dashboard-alert-list'>
+              {alertas.length ? (
+                alertas.map((alerta, index) => (
+                  <div key={index} className='dashboard-alert-item'>
+                    <strong>
+                      {alerta.produto_nome ||
+                        alerta.nome ||
+                        alerta.mensagem ||
+                        alerta}
+                    </strong>
+                  </div>
+                ))
+              ) : (
+                <p>Nenhum item abaixo do mínimo.</p>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

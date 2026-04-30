@@ -71,6 +71,7 @@ export default function Consumiveis() {
     setFuncionarioId('');
     setQuantidade('');
     setFoto(null);
+    setProdutoSelecionado(null);
 
     if (signatureRef.current) {
       signatureRef.current.clear();
@@ -96,7 +97,7 @@ export default function Consumiveis() {
       return '';
     }
 
-    return signatureRef.current.getTrimmedCanvas().toDataURL('image/png');
+    return signatureRef.current.getCanvas().toDataURL('image/png');
   };
 
   const registrarSaida = async () => {
@@ -125,31 +126,27 @@ export default function Consumiveis() {
 
       setLoading(true);
 
-      // ajuste aqui conforme você salva o usuário logado
-      const usuarioSalvo = localStorage.getItem('user');
-      const usuario = usuarioSalvo ? JSON.parse(usuarioSalvo) : null;
-
-      if (!usuario?.id) {
-        showToast('Usuário logado não encontrado', 'error');
-        return;
-      }
+      console.log('ENVIANDO CONSUMÍVEL');
 
       await api.post('/consumiveis', {
         produto_id: produtoSelecionado.id,
         funcionario_id: Number(funcionarioId),
-        usuario_id: Number(usuario.id),
-        quantidade: Number(quantidade),
+        setor: funcionarioSelecionado?.setor || '',
+        quantidade: Number(String(quantidade).replace(',', '.')),
         assinatura,
-        foto, // já vai preparado para futuro uso
+        foto,
       });
 
       showToast('Retirada registrada com sucesso', 'success');
       limparFormulario();
       await load();
     } catch (error) {
+      console.log('ERRO CONSUMÍVEIS:', error?.response?.data || error);
+
       const message =
         error?.response?.data?.message ||
         error?.response?.data?.error ||
+        error?.message ||
         'Erro ao registrar retirada';
 
       showToast(message, 'error');
@@ -164,21 +161,17 @@ export default function Consumiveis() {
         <div className='consumiveis-form'>
           <div className='consumiveis-form__group consumiveis-form__group--full'>
             <BuscaManual
+              endpoint='/produtos/busca'
               label='Consumível'
-              placeholder='Digite o nome do consumível'
-              endpoint='/produtos'
-              searchKey='nome'
-              minChars={2}
-              onSelect={(item) => {
-                if (item.tipo !== 'consumivel') {
-                  showToast(
-                    'Selecione um produto do tipo consumível',
-                    'warning',
-                  );
-                  return;
-                }
+              placeholder='Digite o nome do consumível e pressione Enter'
+              extraParams={{ tipos: 'consumivel' }}
+              onSelect={(id, item) => {
+                if (!item) return;
 
-                setProdutoSelecionado(item);
+                setProdutoSelecionado({
+                  ...item,
+                  id,
+                });
               }}
             />
           </div>
@@ -280,7 +273,9 @@ export default function Consumiveis() {
           columns={[
             { key: 'produto_nome', label: 'Consumível' },
             { key: 'funcionario_nome', label: 'Funcionário' },
+            { key: 'setor', label: 'Setor' },
             { key: 'quantidade', label: 'Quantidade' },
+            { key: 'usuario_nome', label: 'Registrado por' },
             { key: 'criado_em_formatado', label: 'Data' },
           ]}
           rows={historico}

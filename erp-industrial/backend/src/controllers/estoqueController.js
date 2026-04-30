@@ -11,11 +11,6 @@ export const estoqueController = {
     res.status(201).json(result);
   },
 
-  async movimentos(req, res) {
-    const result = await estoqueService.listarMovimentos();
-    res.json(result);
-  },
-
   async buscar(req, res) {
     const result = await estoqueService.buscar(req.query.q);
     res.json(result);

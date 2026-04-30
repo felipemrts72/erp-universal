@@ -12,7 +12,7 @@ import Consumiveis from '../pages/Consumiveis';
 import Funcionarios from '../pages/Funcionarios';
 import Entregas from '../pages/Entregas';
 import Clientes from '../pages/Clientes/component';
-import AuditoriaProducao from '../pages/AuditoriaProducao/AuditoriaProducao';
+import Auditoria from '../pages/Auditoria/Auditoria';
 
 export default function AppRoutes() {
   return (
@@ -30,7 +30,7 @@ export default function AppRoutes() {
           <Route path='/consumiveis' element={<Consumiveis />} />
           <Route path='/funcionarios' element={<Funcionarios />} />
           <Route path='/entregas' element={<Entregas />} />
-          <Route path='/auditoria-producao' element={<AuditoriaProducao />} />
+          <Route path='/auditoria' element={<Auditoria />} />
         </Route>
       </Route>
       <Route path='*' element={<Navigate to='/login' replace />} />

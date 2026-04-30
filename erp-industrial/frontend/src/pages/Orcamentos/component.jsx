@@ -854,7 +854,6 @@ export default function Orcamentos() {
                         value === prev.produto_nome ? prev.produto_id : null,
                     };
 
-                    console.log('onChangeValue produto ->', proximo);
                     return proximo;
                   })
                 }

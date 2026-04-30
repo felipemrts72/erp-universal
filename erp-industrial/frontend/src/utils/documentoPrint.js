@@ -9,6 +9,16 @@ function formatDate(date = new Date()) {
   return new Date(date).toLocaleDateString('pt-BR');
 }
 
+function formatDateOnly(value) {
+  if (!value) return '-';
+
+  const [year, month, day] = String(value).slice(0, 10).split('-');
+
+  if (!year || !month || !day) return value;
+
+  return `${day}/${month}/${year}`;
+}
+
 export function gerarHtmlDocumento({
   tipo = 'orcamento',
   numero = '',
@@ -51,12 +61,12 @@ export function gerarHtmlDocumento({
       const detalhesDatas =
         pagamento.forma === 'cheque' || pagamento.forma === 'boleto'
           ? `
-            <div style="font-size: 11px; color: #475569; margin-top: 4px;">
-              ${(pagamento.datas || [])
-                .map((data, index) => `Parcela ${index + 1}: ${data || '-'}`)
-                .join('<br />')}
-            </div>
-          `
+      <div style="font-size: 11px; color: #475569; margin-top: 4px;">
+        ${(pagamento.datas || [])
+          .map((data, index) => `Parcela ${index + 1}: ${formatDateOnly(data)}`)
+          .join('<br />')}
+      </div>
+    `
           : '';
 
       return `

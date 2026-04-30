@@ -54,6 +54,73 @@ function calcularStatusVendaPorItens(itens) {
   return 'aguardando_retirada';
 }
 
+async function analisarNecessidadeFabricacao(produtoId, quantidadeFabricar) {
+  const componentes = await produtoRepository.buscarComponentes(produtoId);
+  const necessidadesCompra = [];
+  const necessidadesProducao = [];
+
+  for (const componente of componentes) {
+    const necessario =
+      toNumber(componente.quantidade) * toNumber(quantidadeFabricar);
+
+    const saldoFisico = await estoqueRepository.getEstoqueAtual(
+      componente.componente_id,
+    );
+
+    const reservado = await reservaVendaRepository.getReservadoAtivoPorProduto(
+      componente.componente_id,
+    );
+
+    const disponivel = Math.max(toNumber(saldoFisico) - toNumber(reservado), 0);
+    const faltante = Math.max(necessario - disponivel, 0);
+
+    if (faltante <= 0) continue;
+
+    if (componente.componente_tipo === 'materia_prima') {
+      necessidadesCompra.push({
+        produto_id: componente.componente_id,
+        produto_nome: componente.componente_nome,
+        quantidade: faltante,
+        unidade_medida: componente.unidade_medida || 'UN',
+        motivo: 'Componente necessário para produção',
+      });
+    }
+
+    if (componente.componente_tipo === 'revenda') {
+      necessidadesCompra.push({
+        produto_id: componente.componente_id,
+        produto_nome: componente.componente_nome,
+        quantidade: faltante,
+        unidade_medida: componente.unidade_medida || 'UN',
+        motivo: 'Item de revenda necessário para produção',
+      });
+    }
+
+    if (componente.componente_tipo === 'fabricado') {
+      necessidadesProducao.push({
+        produto_id: componente.componente_id,
+        produto_nome: componente.componente_nome,
+        quantidade: faltante,
+        unidade_medida: componente.unidade_medida || 'UN',
+        motivo: 'Subproduto fabricado necessário para produção',
+      });
+
+      const necessidadesFilhas = await analisarNecessidadeFabricacao(
+        componente.componente_id,
+        faltante,
+      );
+
+      necessidadesCompra.push(...necessidadesFilhas.necessidadesCompra);
+      necessidadesProducao.push(...necessidadesFilhas.necessidadesProducao);
+    }
+  }
+
+  return {
+    necessidadesCompra,
+    necessidadesProducao,
+  };
+}
+
 export const vendaService = {
   async createFromOrcamento(orcamentoId, payload = {}) {
     const orcamento = await orcamentoRepository.getWithItens(orcamentoId);
@@ -111,6 +178,17 @@ export const vendaService = {
             quantidade: faltante,
             status: 'pendente',
           });
+
+          const analise = await analisarNecessidadeFabricacao(
+            item.produto_id,
+            faltante,
+          );
+
+          console.log('Necessidades de compra:', analise.necessidadesCompra);
+          console.log(
+            'Necessidades de produção:',
+            analise.necessidadesProducao,
+          );
         }
       }
 

@@ -18,6 +18,7 @@ import { transportadoraController } from '../controllers/transportadoraControlle
 import { authMiddleware, isAdmin } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 import { normalizeNumbers } from '../middleware/numbers.js';
+import { auditoriaController } from '../controllers/auditoriaController.js';
 
 export const router = Router();
 router.get('/health', (req, res) => res.json({ ok: true }));
@@ -53,6 +54,13 @@ router.get(
 router.get('/estoque/busca', asyncHandler(estoqueController.buscar));
 router.post('/estoque/ajuste', asyncHandler(estoqueController.ajuste));
 
+// AUDITORIA-COMPRAS
+router.get(
+  '/auditoria-compras-reposicao',
+  isAdmin,
+  asyncHandler(auditoriaController.comprasReposicao),
+);
+
 // REQUISIÇÕES
 router.post(
   '/ordens-producao/:ordemId/requisicao',
@@ -77,6 +85,25 @@ router.get(
 router.patch(
   '/consumiveis/:id/justificar',
   asyncHandler(consumivelController.justificar),
+);
+
+// AUDITORIA-CONSUMÍVEIS
+router.get(
+  '/auditoria-consumiveis',
+  isAdmin,
+  asyncHandler(auditoriaController.consumiveis),
+);
+
+router.get(
+  '/auditoria-consumiveis/indicadores',
+  isAdmin,
+  asyncHandler(auditoriaController.indicadoresConsumiveis),
+);
+
+router.get(
+  '/auditoria-consumiveis/:id',
+  isAdmin,
+  asyncHandler(auditoriaController.detalheConsumivel),
 );
 
 // ORÇAMENTOS
@@ -137,19 +164,19 @@ router.post(
 
 // AUDITORIA-PRODUÇÃO
 router.get(
-  '/auditoria-producao',
+  '/auditoria',
   isAdmin,
   asyncHandler(relatorioController.auditoriaResumo),
 );
 
 router.get(
-  '/auditoria-producao/indicadores',
+  '/auditoria/indicadores',
   isAdmin,
   asyncHandler(relatorioController.indicadores),
 );
 
 router.get(
-  '/auditoria-producao/:ordemId',
+  '/auditoria/:ordemId',
   isAdmin,
   asyncHandler(relatorioController.auditoriaDetalhe),
 );

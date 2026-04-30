@@ -92,12 +92,18 @@ export const produtoRepository = {
 
   async buscarComponentes(produtoId, client = pool) {
     const { rows } = await client.query(
-      `SELECT cp.*, p.nome AS componente_nome
+      `SELECT 
+       cp.*,
+       p.nome AS componente_nome,
+       p.tipo AS componente_tipo,
+       p.unidade_medida,
+       p.estoque_minimo
      FROM componentes_produto cp
      INNER JOIN produtos p ON p.id = cp.componente_id
      WHERE cp.produto_id = $1`,
       [produtoId],
     );
+
     return rows;
   },
 

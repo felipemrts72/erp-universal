@@ -11,7 +11,7 @@ export const consumivelRepository = {
 
   async buscarFuncionarioPorId(funcionarioId, client) {
     const { rows } = await client.query(
-      `SELECT id, nome FROM funcionarios WHERE id = $1`,
+      `SELECT id, nome, setor FROM funcionarios WHERE id = $1`,
       [funcionarioId],
     );
     return rows[0] || null;
@@ -78,10 +78,13 @@ export const consumivelRepository = {
     SELECT 
       c.*,
       p.nome AS produto_nome,
-      f.nome AS funcionario_nome
+      f.nome AS funcionario_nome,
+      f.setor,
+      u.nome AS usuario_nome
     FROM consumos_consumiveis c
     JOIN produtos p ON p.id = c.produto_id
     JOIN funcionarios f ON f.id = c.funcionario_id
+    JOIN usuarios u ON u.id = c.usuario_id
   `;
 
     if (conditions.length) {
@@ -146,16 +149,17 @@ export const consumivelRepository = {
       SELECT 
         c.funcionario_id,
         f.nome AS funcionario_nome,
+        c.setor,
         c.produto_id,
         p.nome AS produto_nome,
-        SUM(c.quantidade) AS total,
-        COUNT(*) AS retiradas
+        SUM(c.quantidade) AS total_consumido,
+        COUNT(*) AS total_retiradas
       FROM consumos_consumiveis c
       JOIN funcionarios f ON f.id = c.funcionario_id
       JOIN produtos p ON p.id = c.produto_id
       WHERE c.criado_em >= date_trunc('month', CURRENT_DATE)
-      GROUP BY c.funcionario_id, f.nome, c.produto_id, p.nome
-      ORDER BY f.nome, p.nome
+      GROUP BY c.funcionario_id, f.nome, c.setor, c.produto_id, p.nome
+      ORDER BY total_consumido DESC;
     `);
 
     return rows;
@@ -170,6 +174,50 @@ export const consumivelRepository = {
        WHERE id = $2
        RETURNING *`,
       [justificativa, id],
+    );
+
+    return rows[0] || null;
+  },
+
+  async indicadoresConsumiveis() {
+    const result = await db.query(`
+    SELECT 
+      c.funcionario_id,
+      f.nome AS funcionario_nome,
+      c.setor,
+      c.produto_id,
+      p.nome AS produto_nome,
+      SUM(c.quantidade) AS total_consumido,
+      COUNT(*) AS total_retiradas
+    FROM consumos_consumiveis c
+    JOIN funcionarios f ON f.id = c.funcionario_id
+    JOIN produtos p ON p.id = c.produto_id
+    WHERE c.criado_em >= date_trunc('month', CURRENT_DATE)
+    GROUP BY c.funcionario_id, f.nome, c.setor, c.produto_id, p.nome
+    ORDER BY total_consumido DESC
+  `);
+
+    return result.rows;
+  },
+
+  async buscarDetalhePorId(id) {
+    const { rows } = await pool.query(
+      `
+    SELECT 
+      c.*,
+      p.nome AS produto_nome,
+      p.unidade_medida,
+      f.nome AS funcionario_nome,
+      f.setor AS funcionario_setor,
+      u.nome AS usuario_nome
+    FROM consumos_consumiveis c
+    JOIN produtos p ON p.id = c.produto_id
+    JOIN funcionarios f ON f.id = c.funcionario_id
+    LEFT JOIN usuarios u ON u.id = c.usuario_id
+    WHERE c.id = $1
+    LIMIT 1
+    `,
+      [id],
     );
 
     return rows[0] || null;

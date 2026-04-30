@@ -79,7 +79,7 @@ export const consumivelService = {
           produto_id,
           funcionario_id,
           usuario_id,
-          setor: String(setor).trim(),
+          setor: setor ? String(setor).trim() : funcionario.setor || null,
           quantidade: Number(quantidade),
           assinatura_url: assinaturaUrl,
           foto_url: fotoUrl,
@@ -109,6 +109,16 @@ export const consumivelService = {
     return consumivelRepository.buscarRelatorioMensal();
   },
 
+  async detalhe(id) {
+    const detalhe = await consumivelRepository.buscarDetalhePorId(id);
+
+    if (!detalhe) {
+      throw httpError('Retirada de consumível não encontrada', 404);
+    }
+
+    return detalhe;
+  },
+
   async justificar(id, justificativa) {
     if (!justificativa || justificativa.trim().length < 10) {
       throw httpError('Justificativa muito curta');
@@ -124,5 +134,8 @@ export const consumivelService = {
     }
 
     return atualizado;
+  },
+  async indicadoresConsumiveis() {
+    return consumivelRepository.indicadoresConsumiveis();
   },
 };

@@ -21,12 +21,23 @@ export const estoqueRepository = {
     SELECT 
       p.id AS produto_id,
       p.nome AS produto,
+      p.tipo,
+      p.unidade_medida,
       p.estoque_minimo,
       COALESCE(SUM(m.quantidade), 0) AS quantidade_atual,
       COALESCE(pv.faltante_venda, 0) AS faltante_venda,
       CASE
-        WHEN COALESCE(pv.faltante_venda, 0) > 0 THEN 'comprar'
-        WHEN COALESCE(SUM(m.quantidade), 0) < p.estoque_minimo THEN 'baixo'
+        WHEN COALESCE(pv.faltante_venda, 0) > 0
+          AND p.tipo IN ('fabricado', 'conjunto')
+          THEN 'produzir'
+
+        WHEN COALESCE(pv.faltante_venda, 0) > 0
+          AND p.tipo IN ('materia_prima', 'revenda', 'consumivel')
+          THEN 'comprar'
+
+        WHEN COALESCE(SUM(m.quantidade), 0) < p.estoque_minimo
+          THEN 'baixo'
+
         ELSE 'ok'
       END AS status
     FROM produtos p
@@ -200,5 +211,95 @@ export const estoqueRepository = {
     );
 
     return rows[0];
+  },
+  async auditoriaComprasReposicao() {
+    const { rows } = await pool.query(`
+    SELECT
+      p.id AS produto_id,
+      p.nome AS produto_nome,
+      p.tipo,
+      p.unidade_medida,
+      p.estoque_minimo,
+      COALESCE(SUM(m.quantidade), 0) AS saldo_atual,
+      GREATEST(
+        COALESCE(p.estoque_minimo, 0) - COALESCE(SUM(m.quantidade), 0),
+        0
+      ) AS faltante_minimo
+    FROM produtos p
+    LEFT JOIN movimentos_estoque m ON m.produto_id = p.id
+    WHERE p.tipo IN ('materia_prima', 'revenda')
+    GROUP BY p.id
+    HAVING COALESCE(SUM(m.quantidade), 0) < COALESCE(p.estoque_minimo, 0)
+    ORDER BY p.nome
+  `);
+
+    return rows;
+  },
+  async listarComprasReposicao() {
+    const { rows } = await pool.query(`
+    WITH saldo_produto AS (
+      SELECT
+        p.id AS produto_id,
+        COALESCE(SUM(m.quantidade), 0) AS saldo_atual
+      FROM produtos p
+      LEFT JOIN movimentos_estoque m ON m.produto_id = p.id
+      GROUP BY p.id
+    ),
+    faltantes_venda AS (
+      SELECT
+        iv.produto_id,
+        GREATEST(
+          SUM(iv.quantidade) - COALESCE(SUM(rv.quantidade_reservada), 0),
+          0
+        ) AS faltante_venda
+      FROM itens_vendas iv
+      JOIN vendas v ON v.id = iv.venda_id
+      LEFT JOIN (
+        SELECT
+          venda_id,
+          produto_id,
+          SUM(quantidade) AS quantidade_reservada
+        FROM reservas_venda
+        WHERE status = 'reservado'
+        GROUP BY venda_id, produto_id
+      ) rv
+        ON rv.venda_id = iv.venda_id
+       AND rv.produto_id = iv.produto_id
+      WHERE v.status IN ('aberto', 'parcial')
+      GROUP BY iv.produto_id
+    )
+    SELECT
+      p.id AS produto_id,
+      p.nome AS produto_nome,
+      p.tipo,
+      p.unidade_medida,
+      p.estoque_minimo,
+      COALESCE(s.saldo_atual, 0) AS saldo_atual,
+      GREATEST(
+        COALESCE(p.estoque_minimo, 0) - COALESCE(s.saldo_atual, 0),
+        0
+      ) AS faltante_minimo,
+      COALESCE(fv.faltante_venda, 0) AS faltante_venda,
+      CASE
+        WHEN COALESCE(fv.faltante_venda, 0) > 0
+          THEN COALESCE(fv.faltante_venda, 0)
+        ELSE
+          GREATEST(
+            COALESCE(p.estoque_minimo, 0) - COALESCE(s.saldo_atual, 0),
+            0
+          )
+      END AS quantidade_sugerida
+    FROM produtos p
+    LEFT JOIN saldo_produto s ON s.produto_id = p.id
+    LEFT JOIN faltantes_venda fv ON fv.produto_id = p.id
+    WHERE p.tipo IN ('materia_prima', 'revenda')
+      AND (
+        COALESCE(s.saldo_atual, 0) < COALESCE(p.estoque_minimo, 0)
+        OR COALESCE(fv.faltante_venda, 0) > 0
+      )
+    ORDER BY quantidade_sugerida DESC, p.nome
+  `);
+
+    return rows;
   },
 };

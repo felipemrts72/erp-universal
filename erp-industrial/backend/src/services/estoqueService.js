@@ -268,4 +268,37 @@ export const estoqueService = {
       client.release();
     }
   },
+
+  async auditoriaComprasReposicao() {
+    return estoqueRepository.listarComprasReposicao();
+  },
+  async listarComprasReposicao() {
+    const estoque = await estoqueRepository.listarResumoEstoque();
+
+    return estoque
+      .filter((item) => {
+        const status = String(item.status || '').toLowerCase();
+
+        return (
+          status === 'baixo' ||
+          status === 'comprar' ||
+          status === 'produzir' ||
+          Number(item.faltante_venda || 0) > 0
+        );
+      })
+      .map((item) => ({
+        produto_id: item.produto_id,
+        produto_nome: item.produto,
+        tipo: item.tipo,
+        unidade_medida: item.unidade_medida,
+        saldo_atual: Number(item.quantidade_atual || 0),
+        estoque_minimo: Number(item.estoque_minimo || 0),
+        faltante_venda: Number(item.faltante_venda || 0),
+        faltante_minimo: Math.max(
+          Number(item.estoque_minimo || 0) - Number(item.quantidade_atual || 0),
+          0,
+        ),
+        status: item.status,
+      }));
+  },
 };
