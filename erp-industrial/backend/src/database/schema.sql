@@ -225,6 +225,7 @@ CREATE TABLE IF NOT EXISTS vendas (
   observacoes_entrega TEXT,
   prazo_entrega DATE,
   observacoes TEXT,
+  desconto_geral NUMERIC(12,2) NOT NULL DEFAULT 0,
   status VARCHAR(30) NOT NULL DEFAULT 'aberto' CHECK (
     status IN ('aberto', 'parcial', 'finalizado', 'cancelado')
   ),
@@ -236,9 +237,12 @@ CREATE TABLE IF NOT EXISTS itens_vendas (
   venda_id INTEGER NOT NULL REFERENCES vendas(id) ON DELETE CASCADE,
   produto_id INTEGER NOT NULL REFERENCES produtos(id),
   quantidade NUMERIC(12,2) NOT NULL CHECK (quantidade > 0),
-  preco_unitario NUMERIC(12,2) NOT NULL CHECK (preco_unitario >= 0)
+  preco_unitario NUMERIC(12,2) NOT NULL CHECK (preco_unitario >= 0),
+  desconto_valor NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (desconto_valor >= 0),
+  desconto_percentual NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (
+    desconto_percentual >= 0 AND desconto_percentual <= 100
+  )
 );
-
 CREATE TABLE IF NOT EXISTS venda_formas_pagamento (
   id SERIAL PRIMARY KEY,
   venda_id INTEGER NOT NULL REFERENCES vendas(id) ON DELETE CASCADE,
@@ -301,6 +305,15 @@ CREATE TABLE IF NOT EXISTS entregas (
   transportadora_id INTEGER REFERENCES transportadoras(id) ON DELETE SET NULL,
   transportadora_nome_manual VARCHAR(150),
   usuario_id INTEGER REFERENCES usuarios(id),
+
+  nome_recebedor VARCHAR(150),
+  documento_recebedor VARCHAR(50),
+  placa_veiculo VARCHAR(20),
+  codigo_rastreio VARCHAR(100),
+  observacoes_saida TEXT,
+  foto_saida_url TEXT,
+  assinatura_saida_url TEXT,
+
   criado_em TIMESTAMP DEFAULT NOW(),
   entregue_em TIMESTAMP
 );
