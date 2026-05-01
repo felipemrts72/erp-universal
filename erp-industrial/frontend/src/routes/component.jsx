@@ -13,6 +13,8 @@ import Funcionarios from '../pages/Funcionarios';
 import Entregas from '../pages/Entregas';
 import Clientes from '../pages/Clientes/component';
 import Auditoria from '../pages/Auditoria/Auditoria';
+import Usuarios from '../pages/Usuarios/Usuarios';
+import AdminRoute from '../components/AdminRoute/AdminRoute';
 
 export default function AppRoutes() {
   return (
@@ -30,7 +32,11 @@ export default function AppRoutes() {
           <Route path='/consumiveis' element={<Consumiveis />} />
           <Route path='/funcionarios' element={<Funcionarios />} />
           <Route path='/entregas' element={<Entregas />} />
-          <Route path='/auditoria' element={<Auditoria />} />
+
+          <Route element={<AdminRoute />}>
+            <Route path='/auditoria' element={<Auditoria />} />
+            <Route path='/usuarios' element={<Usuarios />} />
+          </Route>
         </Route>
       </Route>
       <Route path='*' element={<Navigate to='/login' replace />} />

@@ -31,7 +31,12 @@ router.use(authMiddleware);
 router.use(normalizeNumbers);
 
 router.get('/auth/me', asyncHandler(authController.me));
-router.post('/usuarios', asyncHandler(authController.register));
+
+router.get('/usuarios', isAdmin, asyncHandler(authController.listUsers));
+router.post('/usuarios', isAdmin, asyncHandler(authController.register));
+
+router.get('/roles', isAdmin, asyncHandler(authController.listRoles));
+router.post('/roles', isAdmin, asyncHandler(authController.createRole));
 
 // PRODUTOS
 router.get('/produtos', asyncHandler(produtoController.list));

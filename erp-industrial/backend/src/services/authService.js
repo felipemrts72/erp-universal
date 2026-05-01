@@ -84,4 +84,44 @@ export const authService = {
 
     return usuario;
   },
+  async listUsers() {
+    const { rows } = await pool.query(`
+      SELECT id, nome, email, role, criado_em
+      FROM usuarios
+      ORDER BY nome
+    `);
+
+    return rows;
+  },
+
+  async listRoles() {
+    const { rows } = await pool.query(`
+      SELECT id, nome
+      FROM roles
+      ORDER BY nome
+    `);
+
+    return rows;
+  },
+
+  async createRole(payload) {
+    const nome = String(payload.nome || '')
+      .trim()
+      .toLowerCase();
+
+    if (!nome) {
+      throw httpError('Nome da função obrigatório');
+    }
+
+    const { rows } = await pool.query(
+      `
+      INSERT INTO roles (nome)
+      VALUES ($1)
+      RETURNING id, nome
+      `,
+      [nome],
+    );
+
+    return rows[0];
+  },
 };

@@ -28,7 +28,12 @@ export default function Sidebar({ isOpen, onClose }) {
     ['/consumiveis', 'Consumíveis', '🧰'],
     ['/funcionarios', 'Funcionários', '🧑‍🏭'],
     ['/entregas', 'Entregas', '🚚'],
-    ...(isAdmin ? [['/auditoria', 'Auditoria', '📊']] : []),
+    ...(isAdmin
+      ? [
+          ['/auditoria', 'Auditoria', '📊'],
+          ['/usuarios', 'Usuários', '🔐'],
+        ]
+      : []),
   ];
 
   return (

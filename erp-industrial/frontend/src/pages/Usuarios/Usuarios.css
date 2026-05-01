@@ -1,0 +1,39 @@
+.usuarios-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.usuarios-form label,
+.usuarios-role-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.usuarios-form input,
+.usuarios-form select,
+.usuarios-role-form input {
+  height: 44px;
+  border: 1px solid #d7e0ee;
+  border-radius: 10px;
+  padding: 0 12px;
+}
+
+.usuarios-role-form {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+}
+
+@media (max-width: 900px) {
+  .usuarios-form {
+    grid-template-columns: 1fr;
+  }
+
+  .usuarios-role-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

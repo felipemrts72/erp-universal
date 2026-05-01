@@ -15,4 +15,19 @@ export const authController = {
     const result = await authService.me(req.user);
     res.json(result);
   },
+
+  async listUsers(req, res) {
+    const result = await authService.listUsers();
+    res.json(result);
+  },
+
+  async listRoles(req, res) {
+    const result = await authService.listRoles();
+    res.json(result);
+  },
+
+  async createRole(req, res) {
+    const result = await authService.createRole(req.body);
+    res.status(201).json(result);
+  },
 };
