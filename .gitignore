@@ -4,3 +4,5 @@ public/
 **/.gitkeep
 **/package-lock.json
 .gitignore
+dist/
+server.js

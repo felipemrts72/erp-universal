@@ -432,3 +432,53 @@
     white-space: normal;
   }
 }
+
+@media (max-width: 700px) {
+  .vendas-page__cards {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .vendas-page__sale-card,
+  .orcamentos-modal__card {
+    border-radius: 18px;
+    padding: 16px;
+  }
+
+  .vendas-page__sale-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+  }
+
+  .vendas-page__badge {
+    grid-column: 1 / -1;
+    width: fit-content;
+  }
+
+  .vendas-page__modal-card {
+    inset: 8px;
+    width: auto;
+    max-height: calc(100vh - 16px);
+    transform: none;
+    top: 0;
+    left: 0;
+    border-radius: 18px;
+    padding: 16px;
+  }
+
+  .vendas-page__item-form,
+  .orcamentos-page__item-form {
+    grid-template-columns: 1fr;
+  }
+
+  .vendas-page__modal-actions,
+  .orcamentos-page__actions {
+    flex-direction: column;
+  }
+
+  .vendas-page__modal-actions .btn,
+  .orcamentos-page__actions .btn {
+    width: 100%;
+  }
+}

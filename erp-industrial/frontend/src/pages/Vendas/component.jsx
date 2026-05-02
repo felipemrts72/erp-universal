@@ -9,6 +9,7 @@ import {
   normalizePagamento,
   validarPagamentos,
 } from '../../utils/pagamentos';
+import { imagemPublicaParaBase64 } from '../../utils/imagensDocumento';
 import {
   gerarHtmlDocumento,
   imprimirDocumento,
@@ -16,6 +17,7 @@ import {
 import LoadingModal from '../../components/LoadingModal';
 import { useToast } from '../../contexts/ToastContext';
 import ActionContextMenu from '../../components/ActionContextMenu/ActionContextMenu';
+import ActionMenu from '../../components/ActionMenu/ActionMenu';
 
 import './style.css';
 
@@ -740,6 +742,26 @@ export default function Vendas() {
                     <span className={getStatusClass(venda.status_venda)}>
                       {getStatusLabel(venda.status_venda)}
                     </span>
+                    <ActionMenu
+  onOpen={() => setVendaContexto(venda)}
+  actions={[
+    {
+      key: 'print',
+      label: 'Reimprimir venda',
+      onClick: () => imprimirVendaExistente(venda.id),
+    },
+    {
+      key: 'clone',
+      label: 'Clonar venda',
+      onClick: () => clonarVenda(venda.id),
+    },
+    {
+      key: 'details',
+      label: 'Ver detalhes',
+      onClick: () => abrirDetalhesVenda(venda.id),
+    },
+  ]}
+/>
                   </div>
 
                   <div className='vendas-page__sale-body'>
@@ -1394,37 +1416,39 @@ export default function Vendas() {
                 Não
               </button>
 
-              <button
-                type='button'
-                className='btn btn--main'
-                onClick={() => {
-                  const html = gerarHtmlDocumento({
-                    tipo: documentoParaImprimir.tipo,
-                    numero: documentoParaImprimir.numero,
-                    empresa: {
-                      nome: 'TORNEADORA UNIVERSAL',
-                      logoUrl: '/logo.png',
-                      endereco: 'R Thiago Magalhães Nunes, 1369, Centro',
-                      cidade: 'Peixoto De Azevedo',
-                      estado: 'MT',
-                      telefone: '(66) 999751055',
-                      email: 'gerente.torneadorauniversal@gmail.com',
-                    },
-                    cliente: documentoParaImprimir.cliente,
-                    itens: documentoParaImprimir.itens,
-                    totais: documentoParaImprimir.totais,
-                    formas_pagamento:
-                      documentoParaImprimir.formas_pagamento || [],
-                    observacoes: documentoParaImprimir.observacoes || '',
-                    assinaturaProprietarioUrl: '/assinatura-proprietario.png',
-                  });
+<button
+  className='btn btn--primary'
+  type='button'
+  onClick={async () => {
+    const logoBase64 = await imagemPublicaParaBase64('/logo.png');
+    const assinaturaBase64 = await imagemPublicaParaBase64('/assinatura-proprietario.png');
 
-                  imprimirDocumento(html);
-                  setModalImpressaoOpen(false);
-                }}
-              >
-                Sim, imprimir
-              </button>
+    const html = gerarHtmlDocumento({
+      tipo: 'orcamento',
+      numero: documentoParaImprimir.numero,
+      empresa: {
+        nome: 'TORNEADORA UNIVERSAL',
+        endereco: 'R Thiago Magalhães Nunes, 1369, Centro',
+        cidade: 'Peixoto De Azevedo',
+        estado: 'MT',
+        telefone: '(66) 999751055',
+        email: 'gerente.torneadorauniversal@gmail.com',
+        logoUrl: logoBase64,
+      },
+      cliente: documentoParaImprimir.cliente,
+      itens: documentoParaImprimir.itens,
+      totais: documentoParaImprimir.totais,
+      formas_pagamento: documentoParaImprimir.formas_pagamento,
+      observacoes: documentoParaImprimir.observacoes,
+      assinaturaProprietarioUrl: assinaturaBase64,
+    });
+
+    imprimirDocumento(html);
+    setModalImpressaoOpen(false);
+  }}
+>
+  Sim, imprimir
+</button>
             </div>
           </div>
         </div>

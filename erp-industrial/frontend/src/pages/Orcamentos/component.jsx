@@ -7,6 +7,7 @@ import BuscaManual from '../../components/BuscaManual';
 import LoadingModal from '../../components/LoadingModal';
 import OrcamentoFinalizarModal from '../../components/OrcamentoFinalizarModal';
 import ModalSelecao from '../../components/ModalSelecao';
+import { imagemPublicaParaBase64 } from '../../utils/imagensDocumento';
 import {
   gerarHtmlDocumento,
   imprimirDocumento,
@@ -21,6 +22,7 @@ import OrcamentoItemContextMenu from '../../components/OrcamentoItemContextMenu'
 import ActionContextMenu from '../../components/ActionContextMenu/ActionContextMenu';
 import OrcamentoItemEditarModal from '../../components/OrcamentoItemEditarModal';
 import { useToast } from '../../contexts/ToastContext';
+import ActionMenu from '../../components/ActionMenu/ActionMenu';
 
 import './style.css';
 
@@ -1009,25 +1011,55 @@ export default function Orcamentos() {
               label: 'Ações',
               render: (_, row) => {
                 return (
-                  <div className='page-actions'>
-                    {row.status === 'aprovado' ? (
-                      <span className='orcamentos-page__status-text orcamentos-page__status-text--success'>
-                        Orçamento aprovado
-                      </span>
-                    ) : row.status === 'rejeitado' ? (
-                      <span className='orcamentos-page__status-text orcamentos-page__status-text--danger'>
-                        Orçamento rejeitado
-                      </span>
-                    ) : (
-                      <button
-                        className='btn btn--primary'
-                        onClick={() => abrirModalAprovacao(row)}
-                        disabled={loading}
-                      >
-                        Aprovar
-                      </button>
-                    )}
-                  </div>
+<div className='page-actions'>
+  {row.status === 'aprovado' ? (
+    <span className='orcamentos-page__status-text orcamentos-page__status-text--success'>
+      Orçamento aprovado
+    </span>
+  ) : row.status === 'rejeitado' ? (
+    <span className='orcamentos-page__status-text orcamentos-page__status-text--danger'>
+      Orçamento rejeitado
+    </span>
+  ) : (
+    <button
+      className='btn btn--primary'
+      onClick={() => abrirModalAprovacao(row)}
+      disabled={loading}
+      type='button'
+    >
+      Aprovar
+    </button>
+  )}
+
+  <ActionMenu
+    onOpen={() => setOrcamentoContexto(row)}
+    actions={[
+      {
+        key: 'edit',
+        label: 'Editar',
+        visible: ['rascunho', 'enviado'].includes(row.status),
+        onClick: () => editarOrcamento(row.id),
+      },
+      {
+        key: 'clone',
+        label: 'Clonar',
+        onClick: () => clonarOrcamento(row.id),
+      },
+      {
+        key: 'print',
+        label: 'Imprimir orçamento',
+        onClick: () => imprimirOrcamentoExistente(row.id),
+      },
+      {
+        key: 'reject',
+        label: 'Rejeitar',
+        danger: true,
+        visible: !['aprovado', 'rejeitado'].includes(row.status),
+        onClick: () => decide(row.id, 'rejeitado'),
+      },
+    ]}
+  />
+</div>
                 );
               },
             },
@@ -1058,37 +1090,39 @@ export default function Orcamentos() {
                 Não
               </button>
 
-              <button
-                className='btn btn--primary'
-                type='button'
-                onClick={() => {
-                  const html = gerarHtmlDocumento({
-                    tipo: documentoParaImprimir.tipo,
-                    numero: documentoParaImprimir.numero,
-                    empresa: {
-                      nome: 'TORNEADORA UNIVERSAL',
-                      logoUrl: '/logo.png',
-                      endereco: 'R Thiago Magalhães Nunes, 1369, Centro',
-                      cidade: 'Peixoto De Azevedo',
-                      estado: 'MT',
-                      telefone: '(66) 999751055',
-                      email: 'gerente.torneadorauniversal@gmail.com',
-                    },
-                    cliente: documentoParaImprimir.cliente,
-                    itens: documentoParaImprimir.itens,
-                    totais: documentoParaImprimir.totais,
-                    formas_pagamento:
-                      documentoParaImprimir.formas_pagamento || [],
-                    observacoes: documentoParaImprimir.observacoes || '',
-                    assinaturaProprietarioUrl: '/assinatura-proprietario.png',
-                  });
+<button
+  className='btn btn--primary'
+  type='button'
+  onClick={async () => {
+    const logoBase64 = await imagemPublicaParaBase64('/logo.png');
+    const assinaturaBase64 = await imagemPublicaParaBase64('/assinatura-proprietario.png');
 
-                  imprimirDocumento(html);
-                  setModalImpressaoOpen(false);
-                }}
-              >
-                Sim, imprimir
-              </button>
+    const html = gerarHtmlDocumento({
+      tipo: 'orcamento',
+      numero: documentoParaImprimir.numero,
+      empresa: {
+        nome: 'TORNEADORA UNIVERSAL',
+        endereco: 'R Thiago Magalhães Nunes, 1369, Centro',
+        cidade: 'Peixoto De Azevedo',
+        estado: 'MT',
+        telefone: '(66) 999751055',
+        email: 'gerente.torneadorauniversal@gmail.com',
+        logoUrl: logoBase64,
+      },
+      cliente: documentoParaImprimir.cliente,
+      itens: documentoParaImprimir.itens,
+      totais: documentoParaImprimir.totais,
+      formas_pagamento: documentoParaImprimir.formas_pagamento,
+      observacoes: documentoParaImprimir.observacoes,
+      assinaturaProprietarioUrl: assinaturaBase64,
+    });
+
+    imprimirDocumento(html);
+    setModalImpressaoOpen(false);
+  }}
+>
+  Sim, imprimir
+</button>
             </div>
           </div>
         </div>
